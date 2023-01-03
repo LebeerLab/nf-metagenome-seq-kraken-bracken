@@ -12,6 +12,7 @@ total_reads = reads[0].sum()
 
 kmer_sizes = (200, 100, 50)
 
+
 def determine_kmer():
     for kmer in kmer_sizes:
         reads_this_size = reads[reads[1] >= kmer][0].sum()
@@ -19,6 +20,7 @@ def determine_kmer():
         if read_perc >= 0.8:
             return kmer
     return kmer
+
 
 kmer = determine_kmer()
 print(kmer)
