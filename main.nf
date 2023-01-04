@@ -1,6 +1,6 @@
 params.reads = "${projectDir}data/samples/*_R{1,2}_001.fastq.gz"
+params.krakendb = "/mnt/ramdisk/krakendb"
 params.pairedEnd = true
-params.min_size=1
 params.min_reads=800
 params.truncLen = 0
 params.trimLeft = 0
@@ -14,18 +14,27 @@ def helpMessage() {
      Name: nf-kraken2-bracken
      Author: LAMB (UAntwerp)
     =========================================
-    Mandatory arguments:
-      --reads                       Path to directory with input samples
-      --krakendb                    Path to kraken database ${params.krakendb}
-    Settings:
+    Required arguments:
+      --reads                       Path to directory with input samples. If using paired reads 
+                                    they need to be captured using a glob expression such as the following:
+                                    data/samples/*_R{1,2}_001.fastq.gz
+
+      --krakendb                    Path to kraken database.
+    Optional arguments:
+
       --pairedEnd                   Specifies if reads are paired-end (true | false). Default = ${params.pairedEnd}
-      --min_size                    Minimum size of fastq files for analysis in kB. Default = ${params.min_size}
-    Options:
+      --min_reads                   Minimum amount of reads needed for analysis. Default = ${params.min_size}
       --outdir                      The output directory where the results will be saved. Defaults to ${params.outdir}
       --help  --h                   Shows this help page
-    
+
+      --truncLen                    Truncation length used by dada2 FilterandTrim algorithm.
+      --trimLeft --trimRight        Trimming on left or right side of reads by dada2 FilterandTrim algorithm.
+      --minLen                      Minimum length of reads kept by dada2 FilterandTrim algorithm.
+      --maxN                        Maximum amount of uncalled bases N to be kept by dada2 FilterandTrim algorithm.
+      --maxEE                       Maximum number of expected errors allowed in a read by dada2 FilterandTrim algorithm. 
+
     Usage example:
-        nextflow run custom.nf --reads '/path/to/reads' \
+        nextflow run main.nf --reads '/path/to/reads' \
         --krakendb '/path/to/krakendb/' 
     """.stripIndent()
 }
@@ -156,6 +165,7 @@ process KRAKEN {
 
     """
     kraken2 --db "${params.krakendb}" --report kraken2_minimizer_report --threads ${task.cpus} \
+    --minimum-base-quality ${params.b_treshold} --confidence ${params.confidence} \
     --memory-mapping ${mode} "${read1}" "${read2}" > /dev/null
     """
 
