@@ -2,6 +2,7 @@ params.reads = "${projectDir}data/samples/*_R{1,2}_001.fastq.gz"
 params.krakendb = "/mnt/ramdisk/krakendb"
 params.pairedEnd = true
 params.min_reads=800
+params.b_treshold = 10
 params.truncLen = 0
 params.trimLeft = 0
 params.trimRight = 0
@@ -24,14 +25,15 @@ def helpMessage() {
 
       --pairedEnd                   Specifies if reads are paired-end (true | false). Default = ${params.pairedEnd}
       --min_reads                   Minimum amount of reads needed for analysis. Default = ${params.min_size}
+      --b_treshold                  
       --outdir                      The output directory where the results will be saved. Defaults to ${params.outdir}
       --help  --h                   Shows this help page
 
-      --truncLen                    Truncation length used by dada2 FilterandTrim algorithm.
-      --trimLeft --trimRight        Trimming on left or right side of reads by dada2 FilterandTrim algorithm.
-      --minLen                      Minimum length of reads kept by dada2 FilterandTrim algorithm.
-      --maxN                        Maximum amount of uncalled bases N to be kept by dada2 FilterandTrim algorithm.
-      --maxEE                       Maximum number of expected errors allowed in a read by dada2 FilterandTrim algorithm. 
+      --truncLen                    Truncation length used by dada2 FilterandTrim algorithm. Default = ${params.truncLen}
+      --trimLeft --trimRight        Trimming on left or right side of reads by dada2 FilterandTrim algorithm. Default = ${params.trimLeft}
+      --minLen                      Minimum length of reads kept by dada2 FilterandTrim algorithm. Default = ${params.minLen}
+      --maxN                        Maximum amount of uncalled bases N to be kept by dada2 FilterandTrim algorithm. Default = ${params.maxN}
+      --maxEE                       Maximum number of expected errors allowed in a read by dada2 FilterandTrim algorithm. Default = ${params.maxEE}
 
     Usage example:
         nextflow run main.nf --reads '/path/to/reads' \
@@ -190,19 +192,72 @@ process BRACKEN {
 
 }
 
-process KRONA_VISUALIZATION {
+// process KRONA_VISUALIZATION {
+//     tag "${pair_id}"
+//     publishDir "${params.outdir}/krona", mode: 'copy'
+
+//     input:
+//     tuple val(pair_id), path(brk_rpt)
+
+//     output:
+//     path("${pair_id}_krona.html")
+
+//     script:
+//     """
+//     ktImportTaxonomy -t 5 -m 2 -o "${pair_id}_krona.html" ${brk_rpt}
+//     """
+// }
+
+process CONVERT_MPA {
     tag "${pair_id}"
-    publishDir "${params.outdir}/krona", mode: 'copy'
+    publishDir "${params.outdir}/mpa", mode: 'link'
 
     input:
-    tuple val(pair_id), path(brk_rpt)
+    tuple val(pair_id), path(brck_rpt)
 
     output:
-    path("${pair_id}_krona.html")
+    path("${pair_id}_bracken.report.mpa")
 
     script:
     """
-    ktImportTaxonomy -t 5 -m 2 -o "${pair_id}_krona.html" ${brk_rpt}
+    kreport2mpa.py -r ${brck_rpt} -o "${pair_id}_bracken.report.mpa"
+    """
+}
+
+process CREATE_TIDYAMPLICONS {
+    publishDir "${params.outdir}",  mode:  'copy'
+
+    input:
+    path("*")
+
+    output:
+    tuple path("tidyamplicons/samples.csv"), path("tidyamplicons/taxa.csv"), path("tidyamplicons/abundances.csv")
+
+
+    script:
+    """
+    #!/usr/bin/env Rscript
+
+    library(tidyverse)
+    library(tidyamplicons)
+
+    source('$baseDir/bin/functions.R')
+
+    run <- Sys.Date()
+    pipeline <- "${launchDir.getName()}"
+
+    # convert kraken2 results to a nice taxonomy table
+    kraken2taxtable(".", "taxtable")
+
+    ta <- import_tidyamplicons("taxtable")
+
+    # add the run and pipeline names to the tidyamplicons object
+    ta\$samples\$run <- run
+    ta\$samples\$pipeline <- pipeline
+
+    # save the tidyamplicons object as three tidy tables
+    ta %>% write_tidyamplicons("tidyamplicons")
+
     """
 }
 
@@ -212,7 +267,7 @@ workflow {
     Channel
         .fromFilePairs(params.reads, size: params.pairedEnd ? 2 : 1)
         .ifEmpty { error "Could not find any reads matching the pattern ${params.reads}"}
-        //.take(10)
+        .take(3)
         //remove 'empty' samples
         .branch {
             succes : params.pairedEnd ? it[1][1].countFastq() >= params.min_reads &&  it[1][0].countFastq() >= params.min_reads : it[1][0].countFastq() >= params.min_reads 
@@ -266,7 +321,14 @@ workflow {
     BRACKEN(reportsAndLengths)
         .set{ brck_reports }
 
+    // Convert to mpa format
+    CONVERT_MPA( brck_reports )
+        .collect()
+        .set { mpa_reports }
+
+    CREATE_TIDYAMPLICONS(mpa_reports)
+
     // viz with krona
-    KRONA_VISUALIZATION(brck_reports)
+    //KRONA_VISUALIZATION(brck_reports)
 
 }
