@@ -10,6 +10,8 @@ params.minLen = 50
 params.maxN = 2
 params.maxEE = 2
 
+params.debug = false
+
 def helpMessage() {
     log.info"""
      Name: nf-kraken2-bracken
@@ -34,6 +36,8 @@ def helpMessage() {
       --minLen                      Minimum length of reads kept by dada2 FilterandTrim algorithm. Default = ${params.minLen}
       --maxN                        Maximum amount of uncalled bases N to be kept by dada2 FilterandTrim algorithm. Default = ${params.maxN}
       --maxEE                       Maximum number of expected errors allowed in a read by dada2 FilterandTrim algorithm. Default = ${params.maxEE}
+
+      --debug
 
     Usage example:
         nextflow run main.nf --reads '/path/to/reads' \
@@ -267,7 +271,7 @@ workflow {
     Channel
         .fromFilePairs(params.reads, size: params.pairedEnd ? 2 : 1)
         .ifEmpty { error "Could not find any reads matching the pattern ${params.reads}"}
-        .take(3)
+        .take( params.debug ? 3 : -1 )
         //remove 'empty' samples
         .branch {
             succes : params.pairedEnd ? it[1][1].countFastq() >= params.min_reads &&  it[1][0].countFastq() >= params.min_reads : it[1][0].countFastq() >= params.min_reads 
