@@ -9,9 +9,6 @@ params.minLen = 50
 params.maxN = 2
 params.maxEE = 2
 
-
-params.krakendb = "/mnt/b/seqdata/illumina_mgs/databases/minikraken2_v2_8GB_201904_UPDATE"
-
 def helpMessage() {
     log.info"""
      Name: nf-kraken2-bracken
@@ -172,8 +169,8 @@ process BRACKEN {
     tuple val(pair_id) , path(kraken_rpt), path(readLengths), val(rlen)
 
     output:
-    path("${pair_id}_bracken.report")
-    path("${pair_id}_bracken.out")
+    tuple val(pair_id), path("${pair_id}_bracken.report")
+    //path("${pair_id}_bracken.out")
     
     script:
     """
@@ -181,6 +178,22 @@ process BRACKEN {
     -o "${pair_id}_bracken.out" -r ${rlen}    
     """
 
+}
+
+process KRONA_VISUALIZATION {
+    tag "${pair_id}"
+    publishDir "${params.outdir}/krona", mode: 'copy'
+
+    input:
+    tuple val(pair_id), path(brk_rpt)
+
+    output:
+    path("${pair_id}_krona.html")
+
+    script:
+    """
+    ktImportTaxonomy -t 5 -m 2 -o "${pair_id}_krona.html" ${brk_rpt}
+    """
 }
 
 workflow {
@@ -241,7 +254,9 @@ workflow {
         .set { reportsAndLengths }
     // Run bracken on appropriate kmer sizes   
     BRACKEN(reportsAndLengths)
-    
-    // exploration with krona
+        .set{ brck_reports }
+
+    // viz with krona
+    KRONA_VISUALIZATION(brck_reports)
 
 }
