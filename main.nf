@@ -214,7 +214,7 @@ process BRACKEN {
 
 process CONVERT_MPA {
     tag "${pair_id}"
-    publishDir "${params.outdir}/mpa", mode: 'link'
+    //publishDir "${params.outdir}/mpa", mode: 'link'
 
     input:
     tuple val(pair_id), path(brck_rpt)
