@@ -45,6 +45,16 @@ def helpMessage() {
     """.stripIndent()
 }
 
+def paramsUsed() {
+    log.info"""
+    N F - K R A K E N 2 - B R A C K E N
+    =========================================
+    reads: ${params.reads}
+    krakendb: ${params.krakendb}
+    outdir: ${params.outdir}
+    """.stripIndent()
+}
+
 if (params.help){
     helpMessage()
     exit 0
@@ -95,14 +105,14 @@ process FILTER_TRIM {
     tuple val(pair_id), path(reads)
 
     output:
-    tuple val(pair_id), path('filtered_*'), emit: filteredReads
+    tuple val(pair_id), path("filtered_${pair_id}_*"), emit: filteredReads
     path "readCounts_${pair_id}", emit: readCounts 
     
     script:
     def single = reads instanceof Path
 
     def read1 = !single ? "fwd='${reads[0]}'" : "'${reads}'"
-    def read2 = !single ? "rev='${reads[1]}', filt.rev='filtered_rev'," : ''
+    def read2 = !single ? "rev='${reads[1]}', filt.rev='filtered_${pair_id}_rev.fastq.gz'," : ''
     def filts = !single ? "'filtered_fwd', 'filtered_rev'" : "'filtered_fwd'" 
 
     def truncLen = !single ? "c(${params.truncLen}, ${params.truncLen})" : ${params.truncLen}
@@ -120,7 +130,7 @@ process FILTER_TRIM {
     file.create(${filts}, showWarnings=F)
     
     readCounts <- filterAndTrim(
-        ${read1},${read2} filt='filtered_fwd',
+        ${read1},${read2} filt='filtered_${pair_id}_fwd.fastq.gz',
         truncLen = ${truncLen},
         trimLeft = ${trimLeft},
         trimRight = ${trimRight},
@@ -265,7 +275,37 @@ process CREATE_TIDYAMPLICONS {
     """
 }
 
+process FASTQC {
+    publishDir "${params.outdir}", mode: 'copy'
+    input:
+    path(reads)
+
+    output:
+    path("fastqc")
+
+    script:
+    """
+    mkdir fastqc && fastqc -t ${task.cpus} -f fastq -o fastqc ${reads}
+    """
+}
+
+process MULTIQC {
+    publishDir "${params.outdir}", mode: 'copy'
+    input:
+    path('*')
+
+    output:
+    path("multiqc_report.html")
+
+    script:
+    """
+    multiqc .
+    """
+}
+
 workflow {
+
+    paramsUsed()
 
     // Collect all fastq files
     Channel
@@ -298,6 +338,19 @@ workflow {
     READLENGTH_DISTRIBUTION( filteredReads )
         .set { readLengths }
     
+    // QC
+    filteredReads
+        .mix(reads.succes)
+        .mix(reads.failed)
+        .collect{ it[1] }
+        .set { allReads }
+
+    
+    FASTQC(allReads)
+        .set { fastqc }
+
+    MULTIQC(fastqc)
+
     // Determine % reads of sizes 200, 100, 50
     DETERMINE_MAX_LENGTH(readLengths)
     // Filter out empty reads (kmer=0)

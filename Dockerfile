@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install --yes --no-install-recommends \
     git \
     cmake \
     build-essential \
+    default-jre \
     gcc-multilib \
     perl \
     g++ \
@@ -60,3 +61,15 @@ tar -xzf v${KRVER}.tar.gz && \
  ./install.pl . && \
  mkdir taxonomy && \
  ./updateTaxonomy.sh
+
+# Install fastqc
+RUN wget https://www.bioinformatics.babraham.ac.uk/projects/fastqc/fastqc_v0.11.9.zip && \
+unzip fastqc_v0.11.9.zip && \
+rm fastqc_v0.11.9.zip && \
+cd FastQC && \
+chmod +x fastqc && \
+ln -s fastqc /usr/local/bin/fastqc
+
+# Install multiqc
+RUN pip install multiqc
+
