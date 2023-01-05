@@ -151,7 +151,7 @@ process WRITE_READCOUNTS {
 
 process KRAKEN {
     tag "${pair_id}"
-    publishDir "${params.outdir}/kraken", mode: 'copy'
+    //publishDir "${params.outdir}/kraken", mode: 'copy'
 
     input:
     tuple val(pair_id), path(reads)
