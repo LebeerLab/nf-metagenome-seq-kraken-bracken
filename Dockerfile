@@ -1,9 +1,10 @@
-FROM ubuntu:xenial
+FROM rocker/r-ver
 
 # for easy upgrade later. ARG variables only persist during build time.
 ARG K2VER="2.1.2"
 ARG BVER="2.8"
 ARG KRVER="2.8.1"
+ENV TDYAMPVER="v0.2.2"
 
 LABEL org.opencontainers.image.authors="tim.van.rillaer@hotmail.com"
 
@@ -21,16 +22,20 @@ RUN apt-get update && apt-get install --yes --no-install-recommends \
     rsync \
     curl \
     cpanminus \
-    python \
-    python-pip \
-    r-base && \
+    python2 \
+    python3-pip \
+    python-setuptools \
+    libssl-dev \
+    libfontconfig1-dev \
+    libxml2-dev \
+    libcurl4-gnutls-dev &&\
     rm -rf /var/lib/apt/lists/* && apt-get autoclean
 
 # perl modules
 RUN cpanm Getopt::Std
 
 # Install R libraries
-RUN R -e 'install.packages("dplyr", repos="http://cloud.r-project.org/"); install.packages("randomForest",repos="http://cloud.r-project.org/")'
+RUN R -e 'install.packages(c("remotes", "tidyverse", "dada2"), repos="http://cloud.r-project.org/"); remotes::install_github("SWittouck/tidyamplicons", ref = Sys.getenv("TDYAMPVER"))'
 
 # Install Kraken2
 RUN wget https://github.com/DerrickWood/kraken2/archive/v${K2VER}.tar.gz && \
@@ -66,12 +71,12 @@ tar -xzf v${KRVER}.tar.gz && \
 
 # Install fastqc
 RUN wget https://www.bioinformatics.babraham.ac.uk/projects/fastqc/fastqc_v0.11.9.zip && \
-unzip fastqc_v0.11.9.zip && \
-rm fastqc_v0.11.9.zip && \
-cd FastQC && \
-chmod +x fastqc && \
-ln -s fastqc /usr/local/bin/fastqc
+ unzip fastqc_v0.11.9.zip && \
+ rm fastqc_v0.11.9.zip && \
+ cd FastQC && \
+ chmod +x fastqc && \
+ ln -s fastqc /usr/local/bin/fastqc
 
 # Install multiqc
-RUN pip install multiqc
+RUN pip3 install multiqc
 
