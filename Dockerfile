@@ -53,7 +53,7 @@ ENV PATH="$PATH:/Bracken-${BVER}" \
     LC_ALL=C
 
 # Install Krona
-RUN wget https://github.com/marbl/Krona/archive/v{KRVER}.tar.gz && \
+RUN wget https://github.com/marbl/Krona/archive/v${KRVER}.tar.gz && \
 tar -xzf v${KRVER}.tar.gz && \
  rm -rf v${KRVER}.tar.gz && \
  cd Krona-${KRVER}/KronaTools && \
