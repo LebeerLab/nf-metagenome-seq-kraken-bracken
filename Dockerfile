@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install --yes --no-install-recommends \
     perl \
     g++ \
     rsync \
+    curl \
     cpanminus \
     python \
     r-base && \
