@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install --yes --no-install-recommends \
     curl \
     cpanminus \
     python \
+    python-pip \
     r-base && \
     rm -rf /var/lib/apt/lists/* && apt-get autoclean
 
