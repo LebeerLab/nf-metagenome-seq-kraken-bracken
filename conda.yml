@@ -1,0 +1,18 @@
+name: kraken2-bracken-mtg
+channels:
+  - defaults
+  - bioconda
+  - conda-forge
+  - biobuilds
+  - r 
+dependencies:
+  - libzlib=1.2.13
+  - kraken2=2.1.2
+  - bracken=2.8=py310h30d9df9_0
+  - fastqc=0.11.9
+  - multiqc=1.13
+  - krona=2.8.1
+  - r=4.2.0
+  - r-tidyverse=1.2.1
+  - bioconductor-dada2=1.26
+  - r-remotes=2.4.2
