@@ -1,53 +1,5 @@
 # Author: Stijn Wittouck
-# Last modified: 02/11/2021
-
-# runs kraken2 on a set of forward and reverse sample pairs
-run_kraken <- function(din_samples, din_database, dout) {
-  
-  if (! dir.exists(dout)) dir.create(dout)
-  
-  samples <- 
-    tibble(
-      file_f = list.files(din_samples, pattern = "_R1_001.fastq") %>% sort(),
-      file_r = list.files(din_samples, pattern = "_R2_001.fastq") %>% sort()
-    ) %>%
-    separate(
-      file_f, c("description", "sample", "lane", "direction", "appendix"), 
-      sep = "_", remove = F
-    ) %>%
-    select(sample, description, file_f, file_r) %>%
-    filter(description != "Undetermined") %>%
-    mutate(file_out = str_c(description, "_counts.tsv", sep = ""))
-  
-  samples %>%
-    mutate(
-      file_f = str_c(din_samples, file_f, sep = "/"),
-      file_r = str_c(din_samples, file_r, sep = "/"),
-      file_out = str_c(dout, file_out, sep = "/")
-    ) %>%
-    select(file_f, file_r, file_out) %>%
-    pwalk(function(file_f, file_r, file_out) {
-      run_kraken_onesample(
-        freadsfin = file_f, rreadsfin = file_r, db = din_database,
-        fout = file_out
-      )
-    })
-  
-}
-
-# needed by run_kraken
-run_kraken_onesample <- function(freadsfin, rreadsfin, db, fout) {
-  
-  if (file.exists(fout)) {
-    message("kraken output already exists for file")
-  } else {
-    system(glue::glue(
-      "kraken2 --db {db} --report {fout} --use-mpa-style --threads 16 --paired ",
-      "{freadsfin} {rreadsfin} > /dev/null"
-    ))
-  }
-  
-}
+# Last modified: 06/01/2022
 
 # converts per-sample kraken2 results to a taxonomy table
 kraken2taxtable <- function(din_krakensamples, fout_taxtable) {
