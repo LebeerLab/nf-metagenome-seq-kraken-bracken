@@ -161,12 +161,12 @@ process WRITE_READCOUNTS {
 
 process KRAKEN {
     tag "${pair_id}"
-    //publishDir "${params.outdir}/kraken", mode: 'copy'
+    publishDir "${params.outdir}/kraken", mode: 'copy'
 
     input:
     tuple val(pair_id), path(reads)
     output:
-    tuple val(pair_id), path("kraken2_minimizer_report")
+    tuple val(pair_id), path("${pair_id}.kraken2.report")
     
 
     script:
@@ -176,11 +176,11 @@ process KRAKEN {
     def read2 = !single ? "${reads[1]}" : ''
     def mode = !single ? "--paired" : "" 
 
-    //def report = pair_id + ".kraken2_minimizer_report"
+    def report = pair_id + ".kraken2.report"
     //def out = pair_id + ".kraken.out"
 
     """
-    kraken2 --db "${params.krakendb}" --report kraken2_minimizer_report --threads ${task.cpus} \
+    kraken2 --db "${params.krakendb}" --report "${report}" --threads ${task.cpus} \
     --minimum-base-quality ${params.b_treshold} --confidence ${params.confidence} \
     --memory-mapping ${mode} "${read1}" "${read2}" > /dev/null
     """
