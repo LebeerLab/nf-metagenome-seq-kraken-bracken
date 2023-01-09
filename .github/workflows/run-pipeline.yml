@@ -15,7 +15,7 @@ jobs:
         id: cache-kraken
         uses: actions/cache@v3
         with:
-            path: ~/krakendb
+            path: /github/home/krakendb
             key: ${{ runner.OS }}-kraken-cache-${{ hashFiles('~/krakendb/taxo.k2d') }}
             restore-keys: |
               ${{ runner.OS }}-kraken-cache-
@@ -24,7 +24,7 @@ jobs:
         name: Download kraken database
         uses: wei/wget@v1
         with:
-          args: -O ~/minikraken.tgz https://genome-idx.s3.amazonaws.com/kraken/k2_standard_08gb_20221209.tar.gz
+          args: -O /github/home/minikraken.tgz https://genome-idx.s3.amazonaws.com/kraken/k2_standard_08gb_20221209.tar.gz
       - if: ${{ steps.cache-kraken.outputs.cache-hit != 'true' }}
         run: | 
-          mkdir ~/krakendb && tar -xzf ~/minikraken.tgz ~/krakendb && rm ~/minikraken.tgz
+          mkdir /github/home/krakendb && tar -xzf /github/home/minikraken.tgz ~/github/home/krakendb && rm /github/home/minikraken.tgz
