@@ -9,7 +9,7 @@ on:
 jobs:
   fetch-krakendb:
     name: Fetch Kraken Database
-    runs-on: ubuntu 20.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Cache Kraken Database
         id: cache-kraken
