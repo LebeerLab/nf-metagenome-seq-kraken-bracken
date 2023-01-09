@@ -15,7 +15,7 @@ jobs:
         id: cache-kraken
         uses: actions/cache@v3
         with:
-            path: /github/home/krakendb
+            path: krakendb
             key: ${{ runner.OS }}-kraken-cache-${{ hashFiles('krakendb') }}
             restore-keys: |
               ${{ runner.OS }}-kraken-cache-
