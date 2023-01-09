@@ -1,0 +1,30 @@
+name: Run Pipeline
+on:
+  push:
+    branches: ["dev", "feature/test-run"]
+    
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  cache-krakendb:
+    name: Cache Kraken Database
+    runs-on: ubuntu 20.04
+    steps:
+        - uses: actions/cache@v3
+          with:
+            path: ~/krakendb
+            key: ${{ runner.OS }}-kraken-cache-${{ hashFiles('~/krakendb/taxo.k2d') }}
+            restore-keys: |
+              ${{ runner.OS }}-npm-cache-
+
+  fetch-kraken-db:
+    name: Fetch Kraken Database
+    runs-on: ubuntu 20.04
+    steps:
+      - run: mkdir ~/krakendb 
+      - uses: wei/wget@v1
+        with:
+          args: -O ~/minikraken.tgz https://genome-idx.s3.amazonaws.com/kraken/k2_standard_08gb_20221209.tar.gz
+      - run: |
+          tar -xzf ~/minikraken.tgz ~/krakendb && rm ~/minikraken.tgz
