@@ -27,4 +27,4 @@ jobs:
           args: -O minikraken.tgz https://genome-idx.s3.amazonaws.com/kraken/k2_standard_08gb_20221209.tar.gz
       - if: ${{ steps.cache-kraken.outputs.cache-hit != 'true' }}
         run: | 
-          mkdir -p ~/krakendb && tar -xzf minikraken.tgz ~/krakendb
+          mkdir -p ~/krakendb && cd krakendb && tar -xzf ../minikraken.tgz
