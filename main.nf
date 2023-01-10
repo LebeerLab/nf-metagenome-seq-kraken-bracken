@@ -164,22 +164,6 @@ process BRACKEN {
 
 }
 
-// process KRONA_VISUALIZATION {
-//     tag "${pair_id}"
-//     publishDir "${params.outdir}/krona", mode: 'copy'
-
-//     input:
-//     tuple val(pair_id), path(brk_rpt)
-
-//     output:
-//     path("${pair_id}_krona.html")
-
-//     script:
-//     """
-//     ktImportTaxonomy -t 5 -m 2 -o "${pair_id}_krona.html" ${brk_rpt}
-//     """
-// }
-
 process CONVERT_MPA {
     tag "${pair_id}"
     //publishDir "${params.outdir}/mpa", mode: 'link'
@@ -301,21 +285,7 @@ workflow {
         .collect()
         .set{fastp}
 
-    // Summarize readlengths
-    // READLENGTH_DISTRIBUTION( filteredReads )
-    //     .collect()
-    //     .set { readLengths }
-
     MULTIQC(fastp)
-
-    // Determine % reads of sizes 200, 100, 50
-    //DETERMINE_MAX_LENGTH(readLengths)
-    // Filter out empty reads (kmer=0)
-        // .branch { 
-        //     success : it[2] as int > 0
-        //     failed : it[2] as int == 0
-        // }
-        // .set { max_length }
 
     // Run kraken on the samples with kmer > 0
     KRAKEN(filteredReads)
@@ -337,8 +307,5 @@ workflow {
         .set { mpa_reports }
 
     CREATE_TIDYAMPLICONS(mpa_reports)
-
-    // viz with krona
-    //KRONA_VISUALIZATION(brck_reports)
 
 }
