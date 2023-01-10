@@ -39,4 +39,4 @@ jobs:
        - krakendb
     steps:
        - name: Fetch SRA
-         run: fasterq-dump -O sra SRS052697
+         run: vdb-config && fasterq-dump -O sra SRS052697
