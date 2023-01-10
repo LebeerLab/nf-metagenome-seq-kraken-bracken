@@ -34,12 +34,12 @@ jobs:
     name: Run Test Pipeline
     runs-on: ubuntu-20.04
     container:
-        image: 'theoaphidian/kraken-bracken'
-	volumes: 
-	    - krakendb
-	steps:
-          - name: Fetch SRA
-            run: fasterq-dump -O sra SRS052697 
-
-	  - name: Run Pipeline
-	    run: ls
+      image: 'theoaphidian/kraken-bracken'
+      volumes: 
+       - krakendb
+    steps:
+       - name: Fetch SRA
+         run: fasterq-dump -O sra SRS052697
+       - name: Run pipeline
+         run: ls
+	 
