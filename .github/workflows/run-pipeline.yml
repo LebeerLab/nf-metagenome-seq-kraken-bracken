@@ -7,11 +7,9 @@ on:
     branches: ["main"]
 
 jobs:
-  fetch-krakendb:
-    name: Fetch Kraken Database
+  run-test-pipeline:
+    name: Run Test Pipeline
     runs-on: ubuntu-20.04
-    outputs:
-       krakendb: ${{ steps.cache-kraken.path }}
     steps:
       - name: Cache Kraken Database
         id: cache-kraken
@@ -30,14 +28,10 @@ jobs:
       - if: ${{ steps.cache-kraken.outputs.cache-hit != 'true' }}
         run: | 
           mkdir -p krakendb && cd krakendb && tar -xzf ../minikraken.tgz
-
-  run-test-pipeline:
-    needs: fetch-krakendb
-    name: Run Test Pipeline
-    runs-on: ubuntu-20.04
-    steps:
+      - name: Setup Nextflow
       - uses: actions/checkout@v3
       - uses: nf-core/setup-nextflow@v1.2.0
-      - run: ls
-      - name: Run Pipeline
-        run: nextflow run ${GITHUB_WORKSPACE} --test_pipeline true --krakendb ${{ needs.fetch-krakendb.outputs.path }}/minikraken2_v2_8GB_201904_UPDATE
+      - name: Run the pipeline
+        run: | 
+         ls &&
+         nextflow run ${GITHUB_WORKSPACE} --test_pipeline true --krakendb krakendb/minikraken2_v2_8GB_201904_UPDATE
