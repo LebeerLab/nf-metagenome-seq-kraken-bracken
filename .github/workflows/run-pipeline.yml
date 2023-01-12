@@ -38,5 +38,5 @@ jobs:
       volumes: 
        - krakendb
     steps:
-       - name: Fetch SRA
-         run: vdb-config && fasterq-dump -O sra SRS052697
+       - name: Run Pipeline
+         run: nextflow main.nf 
