@@ -36,5 +36,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: nf-core/setup-nextflow@v1.2.0
+      - run: ls
       - name: Run Pipeline
-        run: nextflow run ${GITHUB_WORKSPACE}
+        run: nextflow run ${GITHUB_WORKSPACE} --test_pipeline true --krakendb krakendb/minikraken2_v2_8GB_201904_UPDATE
