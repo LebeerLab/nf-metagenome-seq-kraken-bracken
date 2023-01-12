@@ -8,7 +8,6 @@ params.trimLeft = 0
 params.trimRight = 0
 params.minLen = 50
 params.maxN = 2
-params.maxEE = 2
 params.kmer = 50
 
 params.debug = false
@@ -36,7 +35,6 @@ def helpMessage() {
       --trimLeft --trimRight        Trimming on left or right side of reads by dada2 FilterandTrim algorithm. Default = ${params.trimLeft}
       --minLen                      Minimum length of reads kept by dada2 FilterandTrim algorithm. Default = ${params.minLen}
       --maxN                        Maximum amount of uncalled bases N to be kept by dada2 FilterandTrim algorithm. Default = ${params.maxN}
-      --maxEE                       Maximum number of expected errors allowed in a read by dada2 FilterandTrim algorithm. Default = ${params.maxEE}
       --kmer                        Kmer library used by Bracken. Default ${params.kmer}. Choice of 50, 100, 200.
 
       --debug
