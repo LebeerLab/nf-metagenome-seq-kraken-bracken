@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/env python3
 ####################################################################
 #kreport2mpa.py converts a Kraken-style report into mpa [MetaPhlAn) format
 #Copyright (C) 2017 Jennifer Lu, jlu26@jhmi.edu
@@ -48,7 +48,7 @@
 #   - main
 #   - process_kraken_report
 #
-import os, sys, argparse
+import argparse
 
 #process_kraken_report
 #usage: parses a single line in the kraken report and extracts relevant information
@@ -128,7 +128,7 @@ def main():
         if level_type not in main_lvls:
             level_type = "x"
 
-        if level_type == "R1":
+        if level_type == "D":
             level_str = f"d_{name}"
         else:
             level_str = level_type.lower() + "_" + name
