@@ -32,5 +32,5 @@ jobs:
       - uses: nf-core/setup-nextflow@v1.2.0
       - name: Run the pipeline
         run: | 
-         ls &&
-         nextflow run ${GITHUB_WORKSPACE} --test_pipeline true --krakendb krakendb/minikraken2_v2_8GB_201904_UPDATE
+         ls krakendb &&
+         nextflow run ${GITHUB_WORKSPACE} --test_pipeline true --krakendb krakendb
