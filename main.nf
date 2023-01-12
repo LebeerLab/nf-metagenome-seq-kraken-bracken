@@ -9,6 +9,7 @@ params.trimRight = 0
 params.minLen = 50
 params.maxN = 2
 params.maxEE = 2
+params.test_pipeline = false
 
 params.debug = false
 
@@ -25,6 +26,7 @@ def helpMessage() {
       --krakendb                    Path to kraken database.
     Optional arguments:
 
+      --test_pipeline               Run a test of the pipeline on SSRx
       --pairedEnd                   Specifies if reads are paired-end (true | false). Default = ${params.pairedEnd}
       --min_reads                   Minimum amount of reads needed for analysis. Default = ${params.min_size}
       --b_treshold                  
