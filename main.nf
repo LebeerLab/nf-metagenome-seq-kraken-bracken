@@ -10,6 +10,7 @@ params.minLen = 50
 params.maxN = 2
 params.maxEE = 2
 params.test_pipeline = false
+params.kmer = 50
 
 params.debug = false
 
@@ -38,6 +39,7 @@ def helpMessage() {
       --minLen                      Minimum length of reads kept by dada2 FilterandTrim algorithm. Default = ${params.minLen}
       --maxN                        Maximum amount of uncalled bases N to be kept by dada2 FilterandTrim algorithm. Default = ${params.maxN}
       --maxEE                       Maximum number of expected errors allowed in a read by dada2 FilterandTrim algorithm. Default = ${params.maxEE}
+      --kmer                        Kmer library used by Bracken. Default ${params.kmer}. Choice of 50, 100, 200.
 
       --debug
 
@@ -54,6 +56,8 @@ def paramsUsed() {
     reads: ${params.reads}
     krakendb: ${params.krakendb}
     outdir: ${params.outdir}
+
+    kmer-size Bracken: ${params.kmer}
     """.stripIndent()
 }
 
@@ -98,52 +102,6 @@ process DETERMINE_MAX_LENGTH {
     determine_kmer.py ${readLengths[0]}
     """
     
-}
-
-process FILTER_TRIM {
-    tag "${pair_id}"
-
-    input:
-    tuple val(pair_id), path(reads)
-
-    output:
-    tuple val(pair_id), path("filtered_${pair_id}_*"), emit: filteredReads
-    path "readCounts_${pair_id}", emit: readCounts 
-    
-    script:
-    def single = reads instanceof Path
-
-    def read1 = !single ? "fwd='${reads[0]}'" : "'${reads}'"
-    def read2 = !single ? "rev='${reads[1]}', filt.rev='filtered_${pair_id}_rev.fastq.gz'," : ''
-    def filts = !single ? "'filtered_fwd', 'filtered_rev'" : "'filtered_fwd'" 
-
-    def truncLen = !single ? "c(${params.truncLen}, ${params.truncLen})" : ${params.truncLen}
-    def trimLeft = !single ? "c(${params.trimLeft}, ${params.trimLeft})" : ${params.trimLeft}
-    def trimRight = !single ? "c(${params.trimRight}, ${params.trimRight})" : ${params.trimRight}
-    def minLen = !single ? "c(${params.minLen}, ${params.minLen})" : ${params.minLen}
-    def maxN = !single ? "c(${params.maxN}, ${params.maxN})" : ${params.maxN}
-    def maxEE = !single ? "c(${params.maxEE}, ${params.maxEE})" : ${params.maxEE}
-    """
-    #!/usr/bin/env Rscript
-
-    library(dada2)
-    
-    # create files in case of empty reads
-    file.create(${filts}, showWarnings=F)
-    
-    readCounts <- filterAndTrim(
-        ${read1},${read2} filt='filtered_${pair_id}_fwd.fastq.gz',
-        truncLen = ${truncLen},
-        trimLeft = ${trimLeft},
-        trimRight = ${trimRight},
-        minLen = ${minLen},
-        maxN = ${maxN},
-        maxEE = ${maxEE}
-    )
-
-    write.csv(readCounts, "readCounts_${pair_id}")
-
-    """
 }
 
 process WRITE_READCOUNTS {
@@ -194,7 +152,7 @@ process BRACKEN {
     publishDir "${params.outdir}/bracken", mode: 'copy'
 
     input:
-    tuple val(pair_id) , path(kraken_rpt), path(readLengths), val(rlen)
+    tuple val(pair_id) , path(kraken_rpt)
 
     output:
     tuple val(pair_id), path("${pair_id}_bracken.report")
@@ -203,26 +161,10 @@ process BRACKEN {
     script:
     """
     bracken -d ${params.krakendb} -i ${kraken_rpt} -w "${pair_id}_bracken.report" \
-    -o "${pair_id}_bracken.out" -r ${rlen}    
+    -o "${pair_id}_bracken.out" -r 50    
     """
 
 }
-
-// process KRONA_VISUALIZATION {
-//     tag "${pair_id}"
-//     publishDir "${params.outdir}/krona", mode: 'copy'
-
-//     input:
-//     tuple val(pair_id), path(brk_rpt)
-
-//     output:
-//     path("${pair_id}_krona.html")
-
-//     script:
-//     """
-//     ktImportTaxonomy -t 5 -m 2 -o "${pair_id}_krona.html" ${brk_rpt}
-//     """
-// }
 
 process CONVERT_MPA {
     tag "${pair_id}"
@@ -277,31 +219,42 @@ process CREATE_TIDYAMPLICONS {
     """
 }
 
-process FASTQC {
-    publishDir "${params.outdir}", mode: 'copy'
+process FASTP {
+    tag "${pair_id}"    
+    publishDir "${params.outdir}/fastp", mode: 'copy'
+    
     input:
-    path(reads)
+    tuple val(pair_id), path(reads)
 
     output:
-    path("fastqc")
+    tuple val(pair_id), path("filtered_${pair_id}*.fastq.gz"), emit: filteredReads
+    path("${pair_id}_fastp.json"), emit: fastp
 
     script:
+    def single = reads instanceof Path
+
+    def input = !single ? "-i '${reads[0]}' -I '${reads[1]}'" : "-i '${reads}'"
+    def output = !single ? "-o 'filtered_${pair_id}_fwd.fastq.gz' -O 'filtered_${pair_id}_rev.fastq.gz'" : "-o 'filtered_${pair_id}.fastq.gz'"
+
     """
-    mkdir fastqc && fastqc -t ${task.cpus} -f fastq -o fastqc ${reads}
+    fastp ${input} ${output} --json ${pair_id}_fastp.json \\
+     --length_required ${params.minLen} --trim_front1 ${params.trimLeft} \\
+     --trim_tail1 ${params.trimRight} --max_len1 ${params.truncLen} \\
+     --n_base_limit ${params.maxN} 
     """
 }
 
 process MULTIQC {
     publishDir "${params.outdir}", mode: 'copy'
     input:
-    path('*')
+    path('fastp/*')
 
     output:
     path("multiqc_report.html")
 
     script:
     """
-    multiqc .
+    multiqc -m fastp .
     """
 }
 
@@ -316,51 +269,25 @@ workflow {
         .take( params.debug ? 3 : -1 )
         //remove 'empty' samples
         .branch {
-            succes : params.pairedEnd ? it[1][1].countFastq() >= params.min_reads &&  it[1][0].countFastq() >= params.min_reads : it[1][0].countFastq() >= params.min_reads 
+            success : params.pairedEnd ? it[1][1].countFastq() >= params.min_reads &&  it[1][0].countFastq() >= params.min_reads : it[1][0].countFastq() >= params.min_reads 
             failed : params.pairedEnd ? it[1][1].countFastq() < params.min_reads &&  it[1][0].countFastq() < params.min_reads : it[1][0].countFastq() < params.min_reads
         }
         .set { reads }
 
     reads.failed.subscribe { println "Sample ${it[0]} did not meet minimum reads requirement of ${params.min_reads} reads and is excluded."}
 
-    // Filter and trim using dada 
-    FILTER_TRIM(reads.succes)
-        //.ifEmpty { error "No reads to filter" }
-    
-    FILTER_TRIM.out.filteredReads
-        .ifEmpty { error "No reads to filter" }
+    // Filter and trim using fastp
+    FASTP(reads.success)
+
+    FASTP.out.filteredReads
+        .ifEmpty { error "No reads to filter"}
         .set { filteredReads }
 
-    WRITE_READCOUNTS(
-        FILTER_TRIM.out.readCounts.collect()    
-    )
-        .set{ readCounts }
+    FASTP.out.fastp
+        .collect()
+        .set{fastp}
 
-    // Summarize readlengths
-    READLENGTH_DISTRIBUTION( filteredReads )
-        .set { readLengths }
-    
-    // QC
-    filteredReads
-        .mix(reads.succes)
-        .mix(reads.failed)
-        .collect{ it[1] }
-        .set { allReads }
-
-    
-    FASTQC(allReads)
-        .set { fastqc }
-
-    MULTIQC(fastqc)
-
-    // Determine % reads of sizes 200, 100, 50
-    DETERMINE_MAX_LENGTH(readLengths)
-    // Filter out empty reads (kmer=0)
-        .branch { 
-            success : it[2] as int > 0
-            failed : it[2] as int == 0
-        }
-        .set { max_length }
+    MULTIQC(fastp)
 
     // Run kraken on the samples with kmer > 0
     KRAKEN(filteredReads)
@@ -372,12 +299,8 @@ workflow {
     
     kraken_reports.failed.subscribe { println "Sample ${it[0]} only contained unclassified reads and is excluded for further bracken processing."}
 
-    // join max length info with reports
-    kraken_reports.success
-        .join(max_length.success)
-        .set { reportsAndLengths }
     // Run bracken on appropriate kmer sizes   
-    BRACKEN(reportsAndLengths)
+    BRACKEN(kraken_reports.success)
         .set{ brck_reports }
 
     // Convert to mpa format
@@ -386,8 +309,5 @@ workflow {
         .set { mpa_reports }
 
     CREATE_TIDYAMPLICONS(mpa_reports)
-
-    // viz with krona
-    //KRONA_VISUALIZATION(brck_reports)
 
 }
