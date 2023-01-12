@@ -28,7 +28,6 @@ jobs:
       - if: ${{ steps.cache-kraken.outputs.cache-hit != 'true' }}
         run: | 
           mkdir -p krakendb && cd krakendb && tar -xzf ../minikraken.tgz
-      - name: Setup Nextflow
       - uses: actions/checkout@v3
       - uses: nf-core/setup-nextflow@v1.2.0
       - name: Run the pipeline
