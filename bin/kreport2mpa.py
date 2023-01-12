@@ -128,7 +128,7 @@ def main():
         if level_type not in main_lvls:
             level_type = "x"
 
-        if level_type == "R1":
+        if level_type == "D":
             level_str = f"d_{name}"
         else:
             level_str = level_type.lower() + "_" + name
