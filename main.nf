@@ -66,6 +66,7 @@ if (params.help){
     exit 0
 }
 
+
 process READLENGTH_DISTRIBUTION {
     tag "${pair_id}"
 
@@ -125,6 +126,8 @@ process KRAKEN {
 
     input:
     tuple val(pair_id), path(reads)
+    path db
+
     output:
     tuple val(pair_id), path("${pair_id}.kraken2.report")
     
@@ -140,7 +143,7 @@ process KRAKEN {
     //def out = pair_id + ".kraken.out"
 
     """
-    kraken2 --db "${params.krakendb}" --report "${report}" --threads ${task.cpus} \
+    kraken2 --db "${db}" --report "${report}" --threads ${task.cpus} \
     --minimum-base-quality ${params.b_treshold} --confidence ${params.confidence} \
     --memory-mapping ${mode} "${read1}" "${read2}" > /dev/null
     """
@@ -153,15 +156,17 @@ process BRACKEN {
 
     input:
     tuple val(pair_id) , path(kraken_rpt)
+    path db
 
     output:
     tuple val(pair_id), path("${pair_id}_bracken.report")
     //path("${pair_id}_bracken.out")
     
     script:
+    def kmer = params.test_pipeline ? 100 : params.kmer
     """
-    bracken -d ${params.krakendb} -i ${kraken_rpt} -w "${pair_id}_bracken.report" \
-    -o "${pair_id}_bracken.out" -r 50    
+    bracken -d ${db} -i ${kraken_rpt} -w "${pair_id}_bracken.report" \
+    -o "${pair_id}_bracken.out" -r ${kmer}    
     """
 
 }
@@ -290,7 +295,9 @@ workflow {
     MULTIQC(fastp)
 
     // Run kraken on the samples with kmer > 0
-    KRAKEN(filteredReads)
+    ch_KrakenDB = Channel.value(file ("${params.krakendb}"))    
+
+    KRAKEN(filteredReads, ch_KrakenDB)
         .branch {
             success: it[1].countLines() > 1
             failed: it[1].countLines() == 1
@@ -300,7 +307,7 @@ workflow {
     kraken_reports.failed.subscribe { println "Sample ${it[0]} only contained unclassified reads and is excluded for further bracken processing."}
 
     // Run bracken on appropriate kmer sizes   
-    BRACKEN(kraken_reports.success)
+    BRACKEN(kraken_reports.success, ch_KrakenDB)
         .set{ brck_reports }
 
     // Convert to mpa format

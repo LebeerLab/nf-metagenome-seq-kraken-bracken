@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/env python3
 ####################################################################
 #kreport2mpa.py converts a Kraken-style report into mpa [MetaPhlAn) format
 #Copyright (C) 2017 Jennifer Lu, jlu26@jhmi.edu
@@ -48,7 +48,7 @@
 #   - main
 #   - process_kraken_report
 #
-import os, sys, argparse
+import argparse
 
 #process_kraken_report
 #usage: parses a single line in the kraken report and extracts relevant information
