@@ -2,7 +2,7 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "main", "dev", "feature/dockerize" ]
+    branches: ["dev"]
     paths: 
      - 'Dockerfile'
      - 'conda.yml'
