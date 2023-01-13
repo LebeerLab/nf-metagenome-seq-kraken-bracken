@@ -76,7 +76,7 @@ process DETERMINE_MIN_LENGTH {
     def read1 = !single ? "${reads[0]}" : "${reads}"
     def read2 = !single ? "${reads[1]}" : '' 
     """
-    determine_kmer.py ${read1} ${read2}
+    determine_minlen.py ${read1} ${read2}
     """
     
 }
