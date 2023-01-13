@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import sys
 import gzip
 import pandas as pd
@@ -7,16 +8,21 @@ from Bio import SeqIO
 KMER_SIZES = (200, 100, 50)
 readlengths = {}
 
-with gzip.open(sys.argv[1], "rt") as f:
-    for record in SeqIO.parse(f, format="fastq"):
-        r_len = len(record.seq)
+def fetch_readlengths(fastq_f:str) -> pd.DataFrame:
 
-        if r_len not in readlengths.keys():
-            readlengths[r_len] = 1
-        else: readlengths[r_len] += 1
+    if not os.path.exists(fastq_f):
+        raise FileNotFoundError(f"Could not locate {fastq_f}.")
 
-reads = pd.DataFrame(readlengths, index=[0]).transpose()
-total_reads = reads[0].sum()
+    with gzip.open(sys.argv[1], "rt") as f:
+        for record in SeqIO.parse(f, format="fastq"):
+            r_len = len(record.seq)
+
+            if r_len not in readlengths.keys():
+                readlengths[r_len] = 1
+            else: readlengths[r_len] += 1
+
+    return pd.DataFrame(readlengths, index=[0]).transpose()
+
 
 def determine_kmer():
     for kmer in KMER_SIZES:
@@ -26,6 +32,13 @@ def determine_kmer():
             return kmer
     return kmer
 
-
-kmer = determine_kmer()
+shortest_kmer = 200
+# loop over args (in case of paired reads)
+for fastq_f in sys.argv[1:]:
+    reads = fetch_readlengths(fastq_f)
+    total_reads = reads[0].sum()
+    kmer = determine_kmer()
+    if kmer < shortest_kmer:
+        shortest_kmer = kmer
+# output to stdout
 print(kmer)

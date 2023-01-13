@@ -9,7 +9,6 @@ params.trimRight = 0
 params.minLen = 50
 params.maxN = 2
 params.test_pipeline = false
-params.kmer = 50
 
 params.debug = false
 
@@ -37,7 +36,6 @@ def helpMessage() {
       --trimLeft --trimRight        Trimming on left or right side of reads by dada2 FilterandTrim algorithm. Default = ${params.trimLeft}
       --minLen                      Minimum length of reads kept by dada2 FilterandTrim algorithm. Default = ${params.minLen}
       --maxN                        Maximum amount of uncalled bases N to be kept by dada2 FilterandTrim algorithm. Default = ${params.maxN}
-      --kmer                        Kmer library used by Bracken. Default ${params.kmer}. Choice of 50, 100, 200.
 
       --debug
 
@@ -64,15 +62,14 @@ if (params.help){
     exit 0
 }
 
-
-process READLENGTH_DISTRIBUTION {
+process DETERMINE_MAX_LENGTH {
     tag "${pair_id}"
 
     input:
     tuple val(pair_id), path(reads)
 
     output:
-    tuple val(pair_id), path("readlengths")
+    tuple val(pair_id), path(reads), stdout
 
 
     script:
@@ -81,24 +78,7 @@ process READLENGTH_DISTRIBUTION {
     def read1 = !single ? "${reads[0]}" : "${reads}"
     def read2 = !single ? "${reads[1]}" : '' 
     """
-    zcat ${read1} ${read2} | awk '{if(NR%4==2) print length(\$1)}'| sort -n | uniq -c > readlengths
-    """
-
-}
-
-process DETERMINE_MAX_LENGTH {
-    tag "${pair_id}"
-
-    input:
-    tuple val(pair_id), path(readLengths)
-
-    output:
-    tuple val(pair_id), path(readLengths), stdout
-
-
-    script:
-    """
-    determine_kmer.py ${readLengths[0]}
+    determine_kmer.py ${read1} ${read2}
     """
     
 }
@@ -153,7 +133,7 @@ process BRACKEN {
     publishDir "${params.outdir}/bracken", mode: 'copy'
 
     input:
-    tuple val(pair_id) , path(kraken_rpt)
+    tuple val(pair_id) , path(kraken_rpt), path(reads), val(min_len)
     path db
 
     output:
@@ -161,7 +141,7 @@ process BRACKEN {
     //path("${pair_id}_bracken.out")
     
     script:
-    def kmer = params.test_pipeline ? 100 : params.kmer
+    def kmer = params.test_pipeline ? 100 : min_len
     """
     bracken -d ${db} -i ${kraken_rpt} -w "${pair_id}_bracken.report" \
     -o "${pair_id}_bracken.out" -r ${kmer}    
@@ -303,9 +283,23 @@ workflow {
         .set { kraken_reports }
     
     kraken_reports.failed.subscribe { println "Sample ${it[0]} only contained unclassified reads and is excluded for further bracken processing."}
-
     // Run bracken on appropriate kmer sizes   
-    BRACKEN(kraken_reports.success, ch_KrakenDB)
+
+    // Determine % reads of sizes 200, 100, 50
+    DETERMINE_MAX_LENGTH(reads.success)
+    // Filter out empty reads (kmer=0)
+        .branch { 
+            success : it[2] as int > 0
+            failed : it[2] as int == 0
+        }
+        .set { max_length }
+
+    kraken_reports.success
+        .join(max_length.success)
+        .set {kraken_reportsLength}
+
+    
+    BRACKEN(kraken_reportsLength, ch_KrakenDB)
         .set{ brck_reports }
 
     // Convert to mpa format
