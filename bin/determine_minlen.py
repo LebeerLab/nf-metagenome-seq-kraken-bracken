@@ -5,7 +5,7 @@ import gzip
 import pandas as pd
 from Bio import SeqIO
 
-KMER_SIZES = (200, 100, 50)
+MIN_LENS = (200, 100, 50)
 readlengths = {}
 
 def fetch_readlengths(fastq_f:str) -> pd.DataFrame:
@@ -24,21 +24,21 @@ def fetch_readlengths(fastq_f:str) -> pd.DataFrame:
     return pd.DataFrame(readlengths, index=[0]).transpose()
 
 
-def determine_kmer():
-    for kmer in KMER_SIZES:
-        reads_this_size = reads[reads[0] >= kmer][0].sum()
+def determine_minlen():
+    for m_len in MIN_LENS:
+        reads_this_size = reads[reads[0] >= m_len][0].sum()
         read_perc = reads_this_size / total_reads
         if read_perc >= 0.8:
-            return kmer
-    return kmer
+            return m_len
+    return m_len
 
-shortest_kmer = 200
+shortest_mlen = 200
 # loop over args (in case of paired reads)
 for fastq_f in sys.argv[1:]:
     reads = fetch_readlengths(fastq_f)
     total_reads = reads[0].sum()
-    kmer = determine_kmer()
-    if kmer < shortest_kmer:
-        shortest_kmer = kmer
+    mlen = determine_minlen()
+    if mlen < shortest_mlen:
+        shortest_mlen = mlen
 # output to stdout
-print(kmer)
+print(mlen)

@@ -52,8 +52,6 @@ def paramsUsed() {
     reads: ${params.reads}
     krakendb: ${params.krakendb}
     outdir: ${params.outdir}
-
-    kmer-size Bracken: ${params.kmer}
     """.stripIndent()
 }
 
@@ -62,7 +60,7 @@ if (params.help){
     exit 0
 }
 
-process DETERMINE_MAX_LENGTH {
+process DETERMINE_MIN_LENGTH {
     tag "${pair_id}"
 
     input:
@@ -141,10 +139,10 @@ process BRACKEN {
     //path("${pair_id}_bracken.out")
     
     script:
-    def kmer = params.test_pipeline ? 100 : min_len
+    def minLen = params.test_pipeline ? 100 : min_len
     """
     bracken -d ${db} -i ${kraken_rpt} -w "${pair_id}_bracken.report" \
-    -o "${pair_id}_bracken.out" -r ${kmer}    
+    -o "${pair_id}_bracken.out" -r ${minLen}    
     """
 
 }
@@ -272,7 +270,7 @@ workflow {
 
     MULTIQC(fastp)
 
-    // Run kraken on the samples with kmer > 0
+    // Run kraken on the samples with readlength > 0
     ch_KrakenDB = Channel.value(file ("${params.krakendb}"))    
 
     KRAKEN(filteredReads, ch_KrakenDB)
@@ -283,11 +281,11 @@ workflow {
         .set { kraken_reports }
     
     kraken_reports.failed.subscribe { println "Sample ${it[0]} only contained unclassified reads and is excluded for further bracken processing."}
-    // Run bracken on appropriate kmer sizes   
+    // Run bracken on appropriate readlength sizes   
 
     // Determine % reads of sizes 200, 100, 50
-    DETERMINE_MAX_LENGTH(reads.success)
-    // Filter out empty reads (kmer=0)
+    DETERMINE_MIN_LENGTH(reads.success)
+    // Filter out empty reads (readlength=0)
         .branch { 
             success : it[2] as int > 0
             failed : it[2] as int == 0
