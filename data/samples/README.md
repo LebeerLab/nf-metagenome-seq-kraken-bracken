@@ -1,0 +1,3 @@
+A paired read of [SRR20285099](https://trace.ncbi.nlm.nih.gov/Traces/index.html?view=run_browser&acc=SRR20285099&display=metadata)
+is included as positive control [ZymoBIOMICS® Gut Microbiome Standard](https://files.zymoresearch.com/datasheets/ds1712_zymobiomics_gut_microbiome_standard_data_sheet.pdf) and another paired read of [ERR8577605](https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&page_size=10&acc=ERR8577605&display=metadata) that is a sequencing of [ZymoBIOMICS Microbial Community Standard II](https://www.bioscience.co.uk/cpl/zymobiomics-microbial-community-standard-ii).
+The pipeline is not able to generate a tidyamplicons object with less than 2 samples, therefore two pairs of reads are selected.

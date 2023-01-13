@@ -1,0 +1,36 @@
+name: Run Pipeline
+on:
+  push:
+    branches: ["dev", "feature/test-run"]
+    
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  run-test-pipeline:
+    name: Run Test Pipeline
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: Cache Kraken Database
+        id: cache-kraken
+        uses: actions/cache@v3
+        with:
+            path: krakendb
+            key: ${{ runner.OS }}-kraken-cache-${{ hashFiles('krakendb') }}
+            restore-keys: |
+              ${{ runner.OS }}-kraken-cache-
+  
+      - if: ${{ steps.cache-kraken.outputs.cache-hit != 'true' }}
+        name: Download kraken database
+        uses: wei/wget@v1
+        with:
+          args: -O minikraken.tgz https://genome-idx.s3.amazonaws.com/kraken/k2_standard_08gb_20221209.tar.gz
+      - if: ${{ steps.cache-kraken.outputs.cache-hit != 'true' }}
+        run: | 
+          mkdir -p krakendb && cd krakendb && tar -xzf ../minikraken.tgz
+      - uses: nf-core/setup-nextflow@v1.2.0
+      - name: Run the pipeline
+        run: | 
+         ls krakendb &&
+         nextflow run ${GITHUB_WORKSPACE} --test_pipeline true --krakendb krakendb
