@@ -11,6 +11,7 @@ params.maxN = 2
 params.test_pipeline = false
 
 params.confidence = 0.5
+params.bracken_treshold = 5
 params.debug = false
 
 def helpMessage() {
@@ -39,6 +40,7 @@ def helpMessage() {
       --maxN                        Maximum amount of uncalled bases N to be kept by dada2 FilterandTrim algorithm. Default = ${params.maxN}
 
       --confidence                  The confidence used in Kraken2 classfication. Default = ${params.confidence}
+      --bracken_treshold            The minimum number of reads required for a classification at a specified rank. 
 
       --debug
 
@@ -242,6 +244,19 @@ process MULTIQC {
     """
 }
 
+process PRINT_TOP10 {
+    input:
+    tuple path("tidyamplicons/samples.csv"), path("tidyamplicons/taxa.csv"), path("tidyamplicons/abundances.csv")
+    
+    output:
+    stdout
+
+    script:
+    """
+    top10.R    
+    """
+}
+
 workflow {
 
     paramsUsed()
@@ -309,5 +324,10 @@ workflow {
         .set { mpa_reports }
 
     CREATE_TIDYAMPLICONS(mpa_reports)
+        .set { ta }
+    
+    if (params.test_pipeline){
+        PRINT_TOP10(ta) | view {"$it"}
+    }
 
 }
