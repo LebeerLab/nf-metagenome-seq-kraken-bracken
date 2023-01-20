@@ -246,14 +246,14 @@ process MULTIQC {
 
 process PRINT_TOP10 {
     input:
-    tuple path("tidyamplicons/samples.csv"), path("tidyamplicons/taxa.csv"), path("tidyamplicons/abundances.csv")
+    path(ta)
     
     output:
     stdout
 
     script:
     """
-    top10.R    
+    top10.R ${ta}
     """
 }
 
@@ -324,6 +324,7 @@ workflow {
         .set { mpa_reports }
 
     CREATE_TIDYAMPLICONS(mpa_reports)
+        .map {it.first().getParent()}
         .set { ta }
     
     if (params.test_pipeline){

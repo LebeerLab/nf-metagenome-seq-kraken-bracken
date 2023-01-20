@@ -3,7 +3,9 @@
 suppressMessages(library(tidyverse))
 suppressMessages(library(tidyamplicons))
 
-ta <- read_tidyamplicons('results/tidyamplicons')
+args = commandArgs(trailingOnly=TRUE)
+
+ta <- read_tidyamplicons(args[1])
 t_abundances <- ta %>% 
     filter_samples(sample == "SRR20285099") %>%
     add_rel_abundance() %>%
