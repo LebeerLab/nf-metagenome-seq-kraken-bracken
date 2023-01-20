@@ -114,7 +114,7 @@ def main():
         o_file.write(args.r_file + "\n")
     
     #Read through report file 
-    main_lvls = ['R1','K','D','P','C','O','F','G','S']
+    main_lvls = ['D','P','C','O','F','G','S']
     for line in r_file:
         report_vals = process_kraken_report(line)
         #If header line, skip
