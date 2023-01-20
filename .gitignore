@@ -2,4 +2,4 @@ work/
 .nextflow*/
 .nextflow*
 *.html
-results/
+results*/

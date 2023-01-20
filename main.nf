@@ -10,6 +10,7 @@ params.minLen = 50
 params.maxN = 2
 params.test_pipeline = false
 
+params.confidence = 0.5
 params.debug = false
 
 def helpMessage() {
@@ -36,6 +37,8 @@ def helpMessage() {
       --trimLeft --trimRight        Trimming on left or right side of reads by dada2 FilterandTrim algorithm. Default = ${params.trimLeft}
       --minLen                      Minimum length of reads kept by dada2 FilterandTrim algorithm. Default = ${params.minLen}
       --maxN                        Maximum amount of uncalled bases N to be kept by dada2 FilterandTrim algorithm. Default = ${params.maxN}
+
+      --confidence                  The confidence used in Kraken2 classfication. Default = ${params.confidence}
 
       --debug
 
