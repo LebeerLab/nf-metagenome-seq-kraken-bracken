@@ -128,7 +128,7 @@ process KRAKEN {
     """
     kraken2 --db "${db}" --report "${report}" --threads ${task.cpus} \
     --minimum-base-quality ${params.b_treshold} --confidence ${params.confidence} \
-    --memory-mapping ${mode} "${read1}" "${read2}" > /dev/null
+    --minimum-hit-groups --memory-mapping ${mode} "${read1}" "${read2}" > /dev/null
     """
 
 }
