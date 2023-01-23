@@ -1,16 +1,19 @@
 params.reads = "${projectDir}data/samples/*_R{1,2}_001.fastq.gz"
 params.krakendb = "/mnt/ramdisk/krakendb"
+
 params.pairedEnd = true
 params.min_reads=800
-params.b_treshold = 10
+
 params.truncLen = 0
 params.trimLeft = 0
 params.trimRight = 0
 params.minLen = 50
 params.maxN = 2
-params.test_pipeline = false
 
-params.debug = false
+params.b_treshold = 10
+params.confidence = 0.5
+
+params.bracken_treshold = 5
 
 def helpMessage() {
     log.info"""
@@ -18,26 +21,30 @@ def helpMessage() {
      Author: LAMB (UAntwerp)
     =========================================
     Required arguments:
-      --reads                       Path to directory with input samples. If using paired reads 
-                                    they need to be captured using a glob expression such as the following:
-                                    data/samples/*_R{1,2}_001.fastq.gz
+      --reads                   Path to directory with input samples. If using paired reads 
+                                they need to be captured using a glob expression such as the following:
+                                data/samples/*_R{1,2}_001.fastq.gz
 
-      --krakendb                    Path to kraken database.
+      --krakendb                Path to kraken database.
     Optional arguments:
 
-      --test_pipeline               Run a test of the pipeline on SSRx
-      --pairedEnd                   Specifies if reads are paired-end (true | false). Default = ${params.pairedEnd}
-      --min_reads                   Minimum amount of reads needed for analysis. Default = ${params.min_size}
-      --b_treshold                  
-      --outdir                      The output directory where the results will be saved. Defaults to ${params.outdir}
-      --help  --h                   Shows this help page
+      --help  --h               Shows this help page
+      --test_pipeline           Run a test of the pipeline on SRR2085099 and print the 10 most abundant taxa at the end of the pipeline.
+      --debug                   Run on a small subset of samples, for debugging purposes.
+      --outdir                  The output directory where the results will be saved. Defaults to ${params.outdir}
 
-      --truncLen                    Truncation length used by dada2 FilterandTrim algorithm. Default = ${params.truncLen}
-      --trimLeft --trimRight        Trimming on left or right side of reads by dada2 FilterandTrim algorithm. Default = ${params.trimLeft}
-      --minLen                      Minimum length of reads kept by dada2 FilterandTrim algorithm. Default = ${params.minLen}
-      --maxN                        Maximum amount of uncalled bases N to be kept by dada2 FilterandTrim algorithm. Default = ${params.maxN}
+      --pairedEnd               Specifies if reads are paired-end (true | false). Default = ${params.pairedEnd}
+      --min_reads               Minimum amount of reads needed for analysis. Default = ${params.min_size}
+      
+      --truncLen                Truncation length used by fastp. Default = ${params.truncLen}
+      --trimLeft --trimRight    Trimming on left or right side of reads by fastp. Default = ${params.trimLeft}
+      --minLen                  Minimum length of reads kept by fastp. Default = ${params.minLen}
+      --maxN                    Maximum amount of uncalled bases N to be kept by fastp. Default = ${params.maxN}
 
-      --debug
+      --b_treshold              Minimum base quality used in classification with Kraken2. 
+      --confidence              The confidence used in Kraken2 classfication. Default = ${params.confidence}
+
+      --bracken_treshold        The minimum number of reads required for a classification at a specified rank. 
 
     Usage example:
         nextflow run main.nf --reads '/path/to/reads' \
@@ -55,7 +62,7 @@ def paramsUsed() {
     """.stripIndent()
 }
 
-if (params.help){
+if (params.help  || params.h){
     helpMessage()
     exit 0
 }
@@ -239,6 +246,19 @@ process MULTIQC {
     """
 }
 
+process PRINT_TOP10 {
+    input:
+    path(ta)
+    
+    output:
+    stdout
+
+    script:
+    """
+    top10.R ${ta}
+    """
+}
+
 workflow {
 
     paramsUsed()
@@ -306,5 +326,11 @@ workflow {
         .set { mpa_reports }
 
     CREATE_TIDYAMPLICONS(mpa_reports)
+        .map {it.first().getParent()}
+        .set { ta }
+    
+    if (params.test_pipeline){
+        PRINT_TOP10(ta) | view {"$it"}
+    }
 
 }
