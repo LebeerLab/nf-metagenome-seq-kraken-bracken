@@ -32,5 +32,4 @@ jobs:
       - uses: nf-core/setup-nextflow@v1.2.0
       - name: Run the pipeline
         run: | 
-         ls krakendb &&
          nextflow run ${GITHUB_WORKSPACE} --test_pipeline true --krakendb krakendb
