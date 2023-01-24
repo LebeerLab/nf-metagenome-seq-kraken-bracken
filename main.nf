@@ -13,6 +13,7 @@ params.maxN = 2
 
 params.b_treshold = 10
 params.confidence = 0.5
+params.min_hit_groups = 2
 
 params.bracken_treshold = 5
 
@@ -44,6 +45,7 @@ def helpMessage() {
 
       --b_treshold              Minimum base quality used in classification with Kraken2. 
       --confidence              The confidence used in Kraken2 classfication. Default = ${params.confidence}
+      --min_hit_groups          The minimum number of hit groups needed to make a classification call.
 
       --bracken_treshold        The minimum number of reads required for a classification at a specified rank. 
 
@@ -129,7 +131,7 @@ process KRAKEN {
     """
     kraken2 --db "${db}" --report "${report}" --threads ${task.cpus} \
     --minimum-base-quality ${params.b_treshold} --confidence ${params.confidence} \
-    --memory-mapping ${mode} "${read1}" "${read2}" > /dev/null
+    --minimum-hit-groups 3 --memory-mapping ${mode} "${read1}" "${read2}" > /dev/null
     """
 
 }
