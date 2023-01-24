@@ -1,5 +1,6 @@
 params.reads = "${projectDir}data/samples/*_R{1,2}_001.fastq.gz"
 params.krakendb = "/mnt/ramdisk/krakendb"
+params.debug = false
 
 params.pairedEnd = true
 params.min_reads=800
@@ -149,7 +150,7 @@ process BRACKEN {
     def minLen = params.test_pipeline ? 100 : min_len
     """
     bracken -d ${db} -i ${kraken_rpt} -w "${pair_id}_bracken.report" \
-    -o "${pair_id}_bracken.out" -r ${minLen}    
+    -o "${pair_id}_bracken.out" -r ${minLen} -t ${params.bracken_treshold}    
     """
 
 }
