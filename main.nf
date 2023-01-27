@@ -1,6 +1,7 @@
 params.reads = "${projectDir}data/samples/*_R{1,2}_001.fastq.gz"
 params.krakendb = "/mnt/ramdisk/krakendb"
 params.debug = false
+params.skip_fastp = false
 
 params.pairedEnd = true
 params.min_reads=800
@@ -12,10 +13,10 @@ params.minLen = 50
 params.maxN = 2
 
 params.b_treshold = 10
-params.confidence = 0.5
+params.confidence = 0
 params.min_hit_groups = 2
 
-params.bracken_treshold = 5
+params.bracken_treshold = 10
 
 def helpMessage() {
     log.info"""
@@ -43,11 +44,11 @@ def helpMessage() {
       --minLen                  Minimum length of reads kept by fastp. Default = ${params.minLen}
       --maxN                    Maximum amount of uncalled bases N to be kept by fastp. Default = ${params.maxN}
 
-      --b_treshold              Minimum base quality used in classification with Kraken2. 
+      --b_treshold              Minimum base quality used in classification with Kraken2. Default = ${params.b_treshold}
       --confidence              The confidence used in Kraken2 classfication. Default = ${params.confidence}
       --min_hit_groups          The minimum number of hit groups needed to make a classification call. Default = ${params.min_hit_groups}
 
-      --bracken_treshold        The minimum number of reads required for a classification at a specified rank. 
+      --bracken_treshold        The minimum number of reads required for a classification at a specified rank. Default = ${params.bracken_treshold} 
 
     Usage example:
         nextflow run main.nf --reads '/path/to/reads' \
@@ -59,9 +60,17 @@ def paramsUsed() {
     log.info"""
     N F - K R A K E N 2 - B R A C K E N
     =========================================
-    reads: ${params.reads}
-    krakendb: ${params.krakendb}
-    outdir: ${params.outdir}
+    reads:            ${params.reads}
+    krakendb:         ${params.krakendb}
+    outdir:           ${params.outdir}
+    
+    KRAKEN: 
+    b_treshold:       ${params.b_treshold}
+    confidence:       ${params.confidence}
+    min_hit_groups:   ${params.min_hit_groups}
+    
+    BRACKEN:
+    bracken_treshold: ${params.bracken_treshold}
     """.stripIndent()
 }
 
@@ -151,7 +160,7 @@ process BRACKEN {
     def minLen = params.test_pipeline ? 100 : min_len
     """
     bracken -d ${db} -i ${kraken_rpt} -w "${pair_id}_bracken.report" \
-    -o "${pair_id}_bracken.out" -r ${minLen} -t ${params.bracken_treshold}    
+    -o "${pair_id}_bracken.out" -t ${params.bracken_treshold} -r ${minLen}     
     """
 
 }
@@ -279,18 +288,23 @@ workflow {
 
     reads.failed.subscribe { println "Sample ${it[0]} did not meet minimum reads requirement of ${params.min_reads} reads and is excluded."}
 
-    // Filter and trim using fastp
-    FASTP(reads.success)
+    if (!params.skip_fastp){
 
-    FASTP.out.filteredReads
-        .ifEmpty { error "No reads to filter"}
-        .set { filteredReads }
+        // Filter and trim using fastp
+        FASTP(reads.success)
 
-    FASTP.out.fastp
-        .collect()
-        .set{fastp}
+        FASTP.out.filteredReads
+            .ifEmpty { error "No reads to filter"}
+            .set { filteredReads }
 
-    MULTIQC(fastp)
+        FASTP.out.fastp
+            .collect()
+            .set{fastp}
+
+        MULTIQC(fastp)
+    } else {
+        filteredReads = reads.success
+    }
 
     // Run kraken on the samples with readlength > 0
     ch_KrakenDB = Channel.value(file ("${params.krakendb}"))    
