@@ -7,7 +7,7 @@ args = commandArgs(trailingOnly=TRUE)
 
 ta <- read_tidyamplicons(args[1])
 t_abundances <- ta %>% 
-    filter_samples(sample == "ERR5621728") %>%
+    filter_samples(sample == "subset-ERR5621728") %>%
     add_rel_abundance() %>%
     abundances() %>%
     arrange(desc(rel_abundance)) %>%
