@@ -1,3 +1,6 @@
+include { FASTP; MULTIQC } from './modules/qc'
+include { CREATE_TIDYAMPLICONS; PRINT_TOP10 } from './modules/tidyamplicons'
+
 params.reads = "${projectDir}data/samples/*_R{1,2}_001.fastq.gz"
 params.krakendb = "/mnt/ramdisk/krakendb"
 
@@ -178,95 +181,6 @@ process CONVERT_MPA {
     script:
     """
     kreport2mpa.py -r ${brck_rpt} -o "${pair_id}_bracken.report.mpa"
-    """
-}
-
-process CREATE_TIDYAMPLICONS {
-    publishDir "${params.outdir}",  mode:  'copy'
-
-    input:
-    path("*")
-
-    output:
-    tuple path("tidyamplicons/samples.csv"), path("tidyamplicons/taxa.csv"), path("tidyamplicons/abundances.csv")
-
-
-    script:
-    """
-    #!/usr/bin/env Rscript
-
-    library(tidyverse)
-    library(tidyamplicons)
-
-    source('$baseDir/bin/functions.R')
-
-    run <- Sys.Date()
-    pipeline <- "${launchDir.getName()}"
-
-    # convert kraken2 results to a nice taxonomy table
-    kraken2taxtable(".", "taxtable")
-
-    ta <- import_tidyamplicons("taxtable")
-
-    # add the run and pipeline names to the tidyamplicons object
-    ta\$samples\$run <- run
-    ta\$samples\$pipeline <- pipeline
-
-    # save the tidyamplicons object as three tidy tables
-    ta %>% write_tidyamplicons("tidyamplicons")
-
-    """
-}
-
-process FASTP {
-    tag "${pair_id}"    
-    publishDir "${params.outdir}/fastp", mode: 'copy'
-    
-    input:
-    tuple val(pair_id), path(reads)
-
-    output:
-    tuple val(pair_id), path("filtered_${pair_id}*.fastq.gz"), emit: filteredReads
-    path("${pair_id}_fastp.json"), emit: fastp
-
-    script:
-    def single = reads instanceof Path
-
-    def input = !single ? "-i '${reads[0]}' -I '${reads[1]}'" : "-i '${reads}'"
-    def output = !single ? "-o 'filtered_${pair_id}_fwd.fastq.gz' -O 'filtered_${pair_id}_rev.fastq.gz'" : "-o 'filtered_${pair_id}.fastq.gz'"
-
-    """
-    fastp ${input} ${output} --json ${pair_id}_fastp.json \\
-     --length_required ${params.minLen} --trim_front1 ${params.trimLeft} \\
-     --trim_tail1 ${params.trimRight} --max_len1 ${params.truncLen} \\
-     --n_base_limit ${params.maxN} 
-    """
-}
-
-process MULTIQC {
-    publishDir "${params.outdir}", mode: 'copy'
-    input:
-    path('fastp/*')
-
-    output:
-    path("multiqc_report.html")
-
-    script:
-    """
-    multiqc -m fastp .
-    """
-}
-
-process PRINT_TOP10 {
-    input:
-    path(ta)
-    
-    output:
-    stdout
-
-    script:
-    """
-    top10.R ${ta}
     """
 }
 
