@@ -3,11 +3,11 @@ name: Docker Image CI
 on:
   push:
     branches: ["dev"]
-    paths: 
-     - 'Dockerfile'
-     - 'conda.yml'
+    paths:
+      - "Dockerfile"
+      - "conda.yml"
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build-with-docker:

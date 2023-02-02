@@ -1,5 +1,8 @@
-work/
-.nextflow*/
-.nextflow*
-*.html
-results*/
+work/ 
+.nextflow*/ 
+.nextflow* 
+*.html 
+results*/ 
+.prettier* 
+package*
+node*
