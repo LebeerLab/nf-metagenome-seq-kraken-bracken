@@ -1,5 +1,5 @@
 // PARAMETERS
-params.CONTAINER = "tehoaphidian/kraken-bracken"
+params.CONTAINER = "theoaphidian/kraken-bracken"
 params.OUTPUT = "results"
 
 process CREATE_TIDYAMPLICONS {
