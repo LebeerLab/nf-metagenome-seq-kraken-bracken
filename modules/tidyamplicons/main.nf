@@ -1,5 +1,10 @@
+// PARAMETERS
+params.CONTAINER = "tehoaphidian/kraken-bracken"
+params.OUTPUT = "results"
+
 process CREATE_TIDYAMPLICONS {
     publishDir "${params.outdir}",  mode:  'copy'
+    container params.CONTAINER
 
     input:
     path("*")
@@ -36,6 +41,7 @@ process CREATE_TIDYAMPLICONS {
 }
 
 process PRINT_TOP10 {
+    container params.CONTAINER
     input:
     path(ta)
     

@@ -1,7 +1,19 @@
+// PARAMETERS
+params.CONTAINER = "tehoaphidian/kraken-bracken"
+params.OUTPUT = "results"
+
+params.MINLEN = 50
+params.TRIMLEFT = 0 
+params.TRIMRIGHT = 0
+params.TRUNCLEN = 0
+params.MAXN = 2
+
 process FASTP {
     tag "${pair_id}"    
-    publishDir "${params.outdir}/fastp", mode: 'copy'
+    publishDir "${params.OUTPUT}/fastp", mode: 'copy'
     
+    container params.CONTAINER
+
     input:
     tuple val(pair_id), path(reads)
 
@@ -24,7 +36,10 @@ process FASTP {
 }
 
 process MULTIQC {
-    publishDir "${params.outdir}", mode: 'copy'
+    publishDir "${params.OUTPUT}", mode: 'copy'
+
+    container params.CONTAINER
+    
     input:
     path('fastp/*')
 

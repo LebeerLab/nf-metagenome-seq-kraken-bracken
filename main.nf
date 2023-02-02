@@ -1,8 +1,7 @@
-include { FASTP; MULTIQC } from './modules/qc'
-include { CREATE_TIDYAMPLICONS; PRINT_TOP10 } from './modules/tidyamplicons'
-
+// PARAMS ======================================================================
 params.reads = "${projectDir}data/samples/*_R{1,2}_001.fastq.gz"
 params.krakendb = "/mnt/ramdisk/krakendb"
+params.outdir = "results"
 
 params.debug = false
 params.skip_fastp = false
@@ -21,6 +20,13 @@ params.confidence = 0
 params.min_hit_groups = 2
 params.bracken_treshold = 10
 
+// INCLUDE MODULES ===============================================================
+include { FASTP; MULTIQC } from './modules/qc' addParams(OUTPUT: "${params.outdir}")
+include { CREATE_TIDYAMPLICONS; PRINT_TOP10 } from './modules/tidyamplicons' addParams(
+    OUTPUT: "${params.outdir}", MINLEN: "${params.minLen}", TRIMLEFT: "${params.trimLeft}", 
+    TRIMRIGHT: "${params.trimRight}", TRUNCLEN: "${params.truncLen}" , MAXN: "${params.maxN}")
+
+//======= INFO ===================================================================
 def helpMessage() {
     log.info"""
      Name: nf-kraken2-bracken
