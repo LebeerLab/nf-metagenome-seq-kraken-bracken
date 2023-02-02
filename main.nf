@@ -1,5 +1,6 @@
 params.reads = "${projectDir}data/samples/*_R{1,2}_001.fastq.gz"
 params.krakendb = "/mnt/ramdisk/krakendb"
+
 params.debug = false
 params.skip_fastp = false
 
@@ -15,7 +16,6 @@ params.maxN = 2
 params.b_treshold = 10
 params.confidence = 0
 params.min_hit_groups = 2
-
 params.bracken_treshold = 10
 
 def helpMessage() {
