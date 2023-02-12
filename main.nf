@@ -1,5 +1,10 @@
+// PARAMS ======================================================================
 params.reads = "${projectDir}data/samples/*_R{1,2}_001.fastq.gz"
 params.krakendb = "/mnt/ramdisk/krakendb"
+params.outdir = "results"
+
+params.debug = false
+params.skip_fastp = false
 
 params.debug = false
 params.skip_fastp = false
@@ -18,6 +23,15 @@ params.confidence = 0
 params.min_hit_groups = 2
 params.bracken_treshold = 10
 
+params.genomesizes = null
+
+// INCLUDE MODULES ===============================================================
+include { FASTP; MULTIQC } from './modules/qc' addParams(OUTPUT: "${params.outdir}")
+include { CREATE_TIDYAMPLICONS; PRINT_TOP10 } from './modules/tidyamplicons' addParams(
+    OUTPUT: "${params.outdir}", MINLEN: "${params.minLen}", TRIMLEFT: "${params.trimLeft}", 
+    TRIMRIGHT: "${params.trimRight}", TRUNCLEN: "${params.truncLen}" , MAXN: "${params.maxN}")
+
+//======= INFO ===================================================================
 def helpMessage() {
     log.info"""
      Name: nf-kraken2-bracken
@@ -49,6 +63,7 @@ def helpMessage() {
       --min_hit_groups          The minimum number of hit groups needed to make a classification call. Default = ${params.min_hit_groups}
 
       --bracken_treshold        The minimum number of reads required for a classification at a specified rank. Default = ${params.bracken_treshold} 
+      --genomesizes             A tsv containing genomesizes per taxon. Default = ${params.genomesizes}
 
     Usage example:
         nextflow run main.nf --reads '/path/to/reads' \
@@ -71,6 +86,9 @@ def paramsUsed() {
     
     BRACKEN:
     bracken_treshold: ${params.bracken_treshold}
+
+    ABUNDANCE NORMALIZATION:
+    genomesizes:      ${params.genomesizes}
     """.stripIndent()
 }
 
@@ -167,13 +185,13 @@ process BRACKEN {
 
 process CONVERT_MPA {
     tag "${pair_id}"
-    //publishDir "${params.outdir}/mpa", mode: 'link'
+    publishDir "${params.outdir}/mpa", mode: 'link'
 
     input:
     tuple val(pair_id), path(brck_rpt)
 
     output:
-    path("${pair_id}_bracken.report.mpa")
+    tuple val(pair_id), path("${pair_id}_bracken.report.mpa")
 
     script:
     """
@@ -181,92 +199,20 @@ process CONVERT_MPA {
     """
 }
 
-process CREATE_TIDYAMPLICONS {
-    publishDir "${params.outdir}",  mode:  'copy'
+process NORMALIZE_READCOUNT {
+    tag "${pair_id}"
+    publishDir "${params.outdir}/norm", mode: 'link'
 
     input:
-    path("*")
+    tuple val(pair_id), path(mpa_rpt)
+    path(genomesizes)
 
     output:
-    tuple path("tidyamplicons/samples.csv"), path("tidyamplicons/taxa.csv"), path("tidyamplicons/abundances.csv")
-
+    path("${pair_id}_normalized_rc.mpa")
 
     script:
     """
-    #!/usr/bin/env Rscript
-
-    library(tidyverse)
-    library(tidyamplicons)
-
-    source('$baseDir/bin/functions.R')
-
-    run <- Sys.Date()
-    pipeline <- "${launchDir.getName()}"
-
-    # convert kraken2 results to a nice taxonomy table
-    kraken2taxtable(".", "taxtable")
-
-    ta <- import_tidyamplicons("taxtable")
-
-    # add the run and pipeline names to the tidyamplicons object
-    ta\$samples\$run <- run
-    ta\$samples\$pipeline <- pipeline
-
-    # save the tidyamplicons object as three tidy tables
-    ta %>% write_tidyamplicons("tidyamplicons")
-
-    """
-}
-
-process FASTP {
-    tag "${pair_id}"    
-    publishDir "${params.outdir}/fastp", mode: 'copy'
-    
-    input:
-    tuple val(pair_id), path(reads)
-
-    output:
-    tuple val(pair_id), path("filtered_${pair_id}*.fastq.gz"), emit: filteredReads
-    path("${pair_id}_fastp.json"), emit: fastp
-
-    script:
-    def single = reads instanceof Path
-
-    def input = !single ? "-i '${reads[0]}' -I '${reads[1]}'" : "-i '${reads}'"
-    def output = !single ? "-o 'filtered_${pair_id}_fwd.fastq.gz' -O 'filtered_${pair_id}_rev.fastq.gz'" : "-o 'filtered_${pair_id}.fastq.gz'"
-
-    """
-    fastp ${input} ${output} --json ${pair_id}_fastp.json \\
-     --length_required ${params.minLen} --trim_front1 ${params.trimLeft} \\
-     --trim_tail1 ${params.trimRight} --max_len1 ${params.truncLen} \\
-     --n_base_limit ${params.maxN} 
-    """
-}
-
-process MULTIQC {
-    publishDir "${params.outdir}", mode: 'copy'
-    input:
-    path('fastp/*')
-
-    output:
-    path("multiqc_report.html")
-
-    script:
-    """
-    multiqc -m fastp .
-    """
-}
-
-process PRINT_TOP10 {
-    input:
-    path(ta)
-    
-    output:
-    stdout
-
-    script:
-    """
-    top10.R ${ta}
+    normalize_abundances.py ${mpa_rpt} "${genomesizes}" "${pair_id}_normalized_rc.mpa"
     """
 }
 
@@ -338,10 +284,16 @@ workflow {
 
     // Convert to mpa format
     CONVERT_MPA( brck_reports )
-        .collect()
         .set { mpa_reports }
 
-    CREATE_TIDYAMPLICONS(mpa_reports)
+    // Normalize using genome size
+    ch_genomesizes = Channel.value(file ("${params.genomesizes}"))    
+
+    NORMALIZE_READCOUNT( mpa_reports, ch_genomesizes )
+        .collect()
+        .set{ norm_rc }
+
+    CREATE_TIDYAMPLICONS(norm_rc)
         .map {it.first().getParent()}
         .set { ta }
     

@@ -3,24 +3,26 @@
 Metagenomics analysis pipeline using kraken for OTU detection and bracken for correction of detected abundance values.
 
 ## Input
- 
+
 You can check all input arguments by using the --help flag of the pipeline.
 All inputs and options can be modified either from the command line or directly by changing their default value in the nextflow.config file.  
 The following arguments are required:
 
-### reads  
-Location of the input fastq files. Example:  
+### reads
 
-```--reads '/data/samples/*_R{1,2}_001.fastq.gz' ```
+Location of the input fastq files. Example:
+
+`--reads '/data/samples/*_R{1,2}_001.fastq.gz' `
 for paired end reads
-```--reads 'data/samples/*.fastq.gz'```
+`--reads 'data/samples/*.fastq.gz'`
 for single end reads
 
-The name of the path is provided in quotes and a * glob pattern is used to find all fastq files.  
-It is possible to specify whether the reads are paired or with the parameter pairedEnd. 
-If they are paired, it is necessary to use **{1,2}** notation to specify read pairs.  
+The name of the path is provided in quotes and a \* glob pattern is used to find all fastq files.  
+It is possible to specify whether the reads are paired or with the parameter pairedEnd.
+If they are paired, it is necessary to use **{1,2}** notation to specify read pairs.
 
-### krakendb  
+### krakendb
+
 Path to Kraken database. Before execution of the pipeline it is wise to copy the database to a ramdisk to improve read/write speed.
 
 ## Output
@@ -32,6 +34,7 @@ Path to Kraken database. Before execution of the pipeline it is wise to copy the
 ### Bracken
 
 ## Help
+
 ```
 $ nextflow run main.nf --help
 N E X T F L O W  ~  version 22.10.3
@@ -42,7 +45,7 @@ WARN: Access to undefined parameter `min_size` -- Initialise it to a default val
  Author: LAMB (UAntwerp)
 =========================================
 Required arguments:
-  --reads                   Path to directory with input samples. If using paired reads 
+  --reads                   Path to directory with input samples. If using paired reads
                             they need to be captured using a glob expression such as the following:
                             data/samples/*_R{1,2}_001.fastq.gz
 
@@ -62,13 +65,13 @@ Optional arguments:
   --minLen                  Minimum length of reads kept by fastp. Default = 50
   --maxN                    Maximum amount of uncalled bases N to be kept by fastp. Default = 2
 
-  --b_treshold              Minimum base quality used in classification with Kraken2. 
+  --b_treshold              Minimum base quality used in classification with Kraken2.
   --confidence              The confidence used in Kraken2 classfication. Default = 0
 
-  --bracken_treshold        The minimum number of reads required for a classification at a specified rank. 
+  --bracken_treshold        The minimum number of reads required for a classification at a specified rank.
 
 Usage example:
-    nextflow run main.nf --reads '/path/to/reads' --krakendb '/path/to/krakendb/' 
+    nextflow run main.nf --reads '/path/to/reads' --krakendb '/path/to/krakendb/'
 
 
 ```

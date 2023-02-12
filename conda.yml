@@ -1,6 +1,6 @@
 name: kraken2-bracken-mtg
 channels:
- - default
+  - default
 dependencies:
   - conda-forge::libzlib=1.2.13
   - bioconda::kraken2=2.1.2
