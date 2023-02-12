@@ -20,6 +20,8 @@ params.confidence = 0
 params.min_hit_groups = 2
 params.bracken_treshold = 10
 
+params.genomesizes = null
+
 // INCLUDE MODULES ===============================================================
 include { FASTP; MULTIQC } from './modules/qc' addParams(OUTPUT: "${params.outdir}")
 include { CREATE_TIDYAMPLICONS; PRINT_TOP10 } from './modules/tidyamplicons' addParams(
@@ -58,7 +60,7 @@ def helpMessage() {
       --min_hit_groups          The minimum number of hit groups needed to make a classification call. Default = ${params.min_hit_groups}
 
       --bracken_treshold        The minimum number of reads required for a classification at a specified rank. Default = ${params.bracken_treshold} 
-
+      --genomesizes             A tsv containing genomesizes per taxon. Default = ${params.genomesizes}
     Usage example:
         nextflow run main.nf --reads '/path/to/reads' \
         --krakendb '/path/to/krakendb/' 
@@ -80,6 +82,9 @@ def paramsUsed() {
     
     BRACKEN:
     bracken_treshold: ${params.bracken_treshold}
+
+    ABUNDANCE NORMALIZATION:
+    genomesizes:      ${params.genomesizes}
     """.stripIndent()
 }
 
@@ -176,17 +181,34 @@ process BRACKEN {
 
 process CONVERT_MPA {
     tag "${pair_id}"
-    //publishDir "${params.outdir}/mpa", mode: 'link'
+    publishDir "${params.outdir}/mpa", mode: 'link'
 
     input:
     tuple val(pair_id), path(brck_rpt)
 
     output:
-    path("${pair_id}_bracken.report.mpa")
+    tuple val(pair_id), path("${pair_id}_bracken.report.mpa")
 
     script:
     """
     kreport2mpa.py -r ${brck_rpt} -o "${pair_id}_bracken.report.mpa"
+    """
+}
+
+process NORMALIZE_READCOUNT {
+    tag "${pair_id}"
+    publishDir "${params.outdir}/norm", mode: 'link'
+
+    input:
+    tuple val(pair_id), path(mpa_rpt)
+    path(genomesizes)
+
+    output:
+    path("${pair_id}_normalized_rc.mpa")
+
+    script:
+    """
+    normalize_abundances.py ${mpa_rpt} "${genomesizes}" "${pair_id}_normalized_rc.mpa"
     """
 }
 
@@ -258,10 +280,16 @@ workflow {
 
     // Convert to mpa format
     CONVERT_MPA( brck_reports )
-        .collect()
         .set { mpa_reports }
 
-    CREATE_TIDYAMPLICONS(mpa_reports)
+    // Normalize using genome size
+    ch_genomesizes = Channel.value(file ("${params.genomesizes}"))    
+
+    NORMALIZE_READCOUNT( mpa_reports, ch_genomesizes )
+        .collect()
+        .set{ norm_rc }
+
+    CREATE_TIDYAMPLICONS(norm_rc)
         .map {it.first().getParent()}
         .set { ta }
     
