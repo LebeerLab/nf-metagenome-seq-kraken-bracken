@@ -6,6 +6,9 @@ params.outdir = "results"
 params.debug = false
 params.skip_fastp = false
 
+params.debug = false
+params.skip_fastp = false
+
 params.pairedEnd = true
 params.min_reads=800
 
@@ -61,6 +64,7 @@ def helpMessage() {
 
       --bracken_treshold        The minimum number of reads required for a classification at a specified rank. Default = ${params.bracken_treshold} 
       --genomesizes             A tsv containing genomesizes per taxon. Default = ${params.genomesizes}
+
     Usage example:
         nextflow run main.nf --reads '/path/to/reads' \
         --krakendb '/path/to/krakendb/' 
