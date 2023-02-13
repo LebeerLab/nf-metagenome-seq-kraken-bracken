@@ -50,7 +50,7 @@ if __name__ == "__main__":
     parser.add_argument("abundances")
     parser.add_argument("genomesizes")
     parser.add_argument("output")
-    parser.add_argument("-f", "--factor", default=1e9)
+    parser.add_argument("-f", "--factor", default=200)
 
     args = parser.parse_args()
 
