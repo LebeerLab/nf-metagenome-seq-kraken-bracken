@@ -185,7 +185,7 @@ process BRACKEN {
 
 process CONVERT_MPA {
     tag "${pair_id}"
-    publishDir "${params.outdir}/mpa", mode: 'link'
+    publishDir "${params.outdir}/mpa", mode: 'copy'
 
     input:
     tuple val(pair_id), path(brck_rpt), val(readlen) 
@@ -201,7 +201,7 @@ process CONVERT_MPA {
 
 process NORMALIZE_READCOUNT {
     tag "${pair_id}"
-    publishDir "${params.outdir}/norm", mode: 'link'
+    publishDir "${params.outdir}/norm", mode: 'copy'
 
     input:
     tuple val(pair_id), path(mpa_rpt), val(readlen) 
