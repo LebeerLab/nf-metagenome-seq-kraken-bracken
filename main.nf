@@ -209,6 +209,7 @@ process NORMALIZE_READCOUNT {
 
     output:
     path("${pair_id}_normalized_rc.mpa")
+    path("${pair_id}_normalized_rc.mpa")
 
     script:
     """
