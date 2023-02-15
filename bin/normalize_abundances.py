@@ -21,6 +21,8 @@ def add_aggregated_genome_sizes(genomesize_df):
 
 def normalize_readcount(abundances, genomesizes, factor):
 
+    factor = int(factor)
+
     # Read the abundances from the MPA format table
     df_ab = pd.read_table(abundances, header=None, names=["taxon", "readcount"])
 
@@ -50,7 +52,7 @@ if __name__ == "__main__":
     parser.add_argument("abundances")
     parser.add_argument("genomesizes")
     parser.add_argument("output")
-    parser.add_argument("-f", "--factor", default=1e9)
+    parser.add_argument("-f", "--factor", default=200)
 
     args = parser.parse_args()
 
