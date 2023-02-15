@@ -171,7 +171,7 @@ process BRACKEN {
     path db
 
     output:
-    tuple val(pair_id), path("${pair_id}_bracken.report")
+    tuple val(pair_id), path("${pair_id}_bracken.report"), val(min_len) 
     //path("${pair_id}_bracken.out")
     
     script:
@@ -185,13 +185,13 @@ process BRACKEN {
 
 process CONVERT_MPA {
     tag "${pair_id}"
-    publishDir "${params.outdir}/mpa", mode: 'link'
+    publishDir "${params.outdir}/mpa", mode: 'copy'
 
     input:
-    tuple val(pair_id), path(brck_rpt)
+    tuple val(pair_id), path(brck_rpt), val(readlen) 
 
     output:
-    tuple val(pair_id), path("${pair_id}_bracken.report.mpa")
+    tuple val(pair_id), path("${pair_id}_bracken.report.mpa"), val(readlen) 
 
     script:
     """
@@ -201,10 +201,10 @@ process CONVERT_MPA {
 
 process NORMALIZE_READCOUNT {
     tag "${pair_id}"
-    publishDir "${params.outdir}/norm", mode: 'link'
+    publishDir "${params.outdir}/norm", mode: 'copy'
 
     input:
-    tuple val(pair_id), path(mpa_rpt)
+    tuple val(pair_id), path(mpa_rpt), val(readlen) 
     path(genomesizes)
 
     output:
@@ -212,7 +212,7 @@ process NORMALIZE_READCOUNT {
 
     script:
     """
-    normalize_abundances.py ${mpa_rpt} "${genomesizes}" "${pair_id}_normalized_rc.mpa"
+    normalize_abundances.py ${mpa_rpt} "${genomesizes}" "${pair_id}_normalized_rc.mpa" --factor ${readlen}
     """
 }
 
