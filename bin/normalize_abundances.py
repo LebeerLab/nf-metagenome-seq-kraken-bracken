@@ -25,22 +25,21 @@ def normalize_readcount(abundances, genomesizes, factor):
 
     # Read the abundances from the MPA format table
     df_ab = pd.read_table(abundances, header=None, names=["taxon", "readcount"])
-
+    
     df_gs = pd.read_table(
         genomesizes, header=None, skiprows=[0], names=["genome_size", "taxon"]
     )
+    
     # Adapt to MPA style
     df_gs["taxon"] = df_gs["taxon"].apply(
         lambda x: x.replace(";", "|").replace("__", "_")
     )
-
+    
     df_m = df_ab.merge(df_gs, how="left", on="taxon")
 
     df_m["norm_readcount"] = factor * df_m["readcount"] / df_m["genome_size"]
     # Give missing genomesizes average size of bact genome...
     df_m["norm_readcount"] = df_m["norm_readcount"].fillna(factor * df_m["readcount"] /38*10e5)
-    df_m["norm_readcount"] = df_m["norm_readcount"].round()
-    df_m["norm_readcount"] = df_m["norm_readcount"].astype("int")
     df_m = df_m.drop(["genome_size", "readcount"], axis=1)
 
     return df_m
