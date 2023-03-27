@@ -177,7 +177,7 @@ process BRACKEN {
     script:
     def minLen = params.test_pipeline ? 100 : min_len
     """
-    bracken -d ${db} -i ${kraken_rpt} -w "${pair_id}_bracken.report" \
+    bracken -d ${db} -i ${kraken_rpt}  -w "${pair_id}_bracken.report" \
     -o "${pair_id}_bracken.out" -t ${params.bracken_treshold} -r ${minLen}     
     """
 
@@ -287,11 +287,17 @@ workflow {
         .set { mpa_reports }
 
     // Normalize using genome size
+    if (!params.skip_norm){
     ch_genomesizes = Channel.value(file ("${params.genomesizes}"))    
 
     NORMALIZE_READCOUNT( mpa_reports, ch_genomesizes )
         .collect()
         .set{ norm_rc }
+    } else { 
+        mpa_reports
+            .collect{it[1]}
+            .set {norm_rc} 
+    }
 
     CREATE_TIDYAMPLICONS(norm_rc)
         .map {it.first().getParent()}
