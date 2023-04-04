@@ -286,6 +286,9 @@ workflow {
     CONVERT_MPA( brck_reports )
         .set { mpa_reports }
 
+    CONVERT_MPA( kraken_reports.success)
+        .set { mpa_reports_kraken }
+
     // Normalize using genome size
     if (!params.skip_norm){
     ch_genomesizes = Channel.value(file ("${params.genomesizes}"))    
@@ -293,15 +296,25 @@ workflow {
     NORMALIZE_READCOUNT( mpa_reports, ch_genomesizes )
         .collect()
         .set{ norm_rc }
+
+    NORMALIZE_READCOUNT( mpa_reports_kraken, ch_genomesizes)
+        .collect()
+        .set{ norm_rc_kr }
+
     } else { 
         mpa_reports
             .collect{it[1]}
             .set {norm_rc} 
+        mpa_reports_kraken
+            .collect{it[1]}
+            .set {norm_rc_kr}
     }
 
-    CREATE_TIDYAMPLICONS(norm_rc)
+    CREATE_TIDYAMPLICONS(norm_rc, "bracken")
         .map {it.first().getParent()}
         .set { ta }
+
+    CREATE_TIDYAMPLICONS(norm_rc_kr, "kracken")
     
     if (params.test_pipeline){
         PRINT_TOP10(ta) | view {"$it"}

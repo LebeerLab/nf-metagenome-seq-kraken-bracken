@@ -8,6 +8,7 @@ process CREATE_TIDYAMPLICONS {
 
     input:
     path("*")
+    val PREFIX
 
     output:
     tuple path("tidyamplicons/samples.csv"), path("tidyamplicons/taxa.csv"), path("tidyamplicons/abundances.csv")
@@ -35,7 +36,7 @@ process CREATE_TIDYAMPLICONS {
     ta\$samples\$pipeline <- pipeline
 
     # save the tidyamplicons object as three tidy tables
-    ta %>% write_tidyamplicons("tidyamplicons")
+    ta %>% write_tidyamplicons("${PREFIX}_tidyamplicons")
 
     """
 }
