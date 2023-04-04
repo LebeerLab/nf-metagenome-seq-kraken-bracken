@@ -3,13 +3,13 @@
 
 # converts per-sample kraken2 results to a taxonomy table
 kraken2taxtable <- function(din_krakensamples, fout_taxtable) {
-  
+  print("working")
   list.files(din_krakensamples, pattern = ".mpa") %>%
     {names(.) <- str_extract(., "^[^_]+"); .} %>%
     map(~ read_tsv(
       str_c(din_krakensamples, ., sep = "/"), 
       col_names = c("classification", "count"),
-      col_types = cols(classification = col_character(), count = col_integer()),
+      col_types = cols(classification = col_character(), count = col_double()),
       lazy = F
     )) %>%
     # remove empty tables (they'll give trouble otherwise)
