@@ -27,9 +27,15 @@ params.genomesizes = null
 
 // INCLUDE MODULES ===============================================================
 include { FASTP; MULTIQC } from './modules/qc' addParams(OUTPUT: "${params.outdir}")
-include { CREATE_TIDYAMPLICONS; PRINT_TOP10 } from './modules/tidyamplicons' addParams(
-    OUTPUT: "${params.outdir}", MINLEN: "${params.minLen}", TRIMLEFT: "${params.trimLeft}", 
-    TRIMRIGHT: "${params.trimRight}", TRUNCLEN: "${params.truncLen}" , MAXN: "${params.maxN}")
+include { CONVERT_REPORT_TO_TA as CONVERT_BRACKEN_REPORT_TO_TA } from './modules/tidyamplicons' addParams(
+    OUTPUT: "${params.outdir}", SKIP_NORM : "${params.skip_norm}", 
+    GENOMESIZES : "${params.genomesizes}", TEST_PIPELINE : "${params.test_pipeline}"
+)
+include { CONVERT_REPORT_TO_TA as CONVERT_KRAKEN_REPORT_TO_TA } from './modules/tidyamplicons' addParams(
+    OUTPUT: "${params.outdir}", SKIP_NORM : "${params.skip_norm}", 
+    GENOMESIZES : "${params.genomesizes}", TEST_PIPELINE : "${params.test_pipeline}",
+    REPORT_TYPE : "kraken"
+)
 
 //======= INFO ===================================================================
 def helpMessage() {
@@ -183,39 +189,6 @@ process BRACKEN {
 
 }
 
-process CONVERT_MPA {
-    tag "${pair_id}"
-    //publishDir "${params.outdir}/mpa", mode: 'copy'
-
-    input:
-    tuple val(pair_id), path(brck_rpt), val(readlen) 
-
-    output:
-    tuple val(pair_id), path("${pair_id}_bracken.report.mpa"), val(readlen) 
-
-    script:
-    """
-    kreport2mpa.py -r ${brck_rpt} -o "${pair_id}_bracken.report.mpa"
-    """
-}
-
-process NORMALIZE_READCOUNT {
-    tag "${pair_id}"
-    //publishDir "${params.outdir}/norm", mode: 'copy'
-
-    input:
-    tuple val(pair_id), path(mpa_rpt), val(readlen) 
-    path(genomesizes)
-
-    output:
-    path("${pair_id}_normalized_rc.mpa")
-    
-    script:
-    """
-    normalize_abundances.py ${mpa_rpt} "${genomesizes}" "${pair_id}_normalized_rc.mpa" --factor ${readlen}
-    """
-}
-
 workflow {
 
     paramsUsed()
@@ -282,42 +255,6 @@ workflow {
     BRACKEN(kraken_reportsLength, ch_KrakenDB)
         .set{ brck_reports }
 
-    // Convert to mpa format
-    CONVERT_MPA( brck_reports )
-        .set { mpa_reports }
-
-    CONVERT_MPA( kraken_reports.success)
-        .set { mpa_reports_kraken }
-
-    // Normalize using genome size
-    if (!params.skip_norm){
-    ch_genomesizes = Channel.value(file ("${params.genomesizes}"))    
-
-    NORMALIZE_READCOUNT( mpa_reports, ch_genomesizes )
-        .collect()
-        .set{ norm_rc }
-
-    NORMALIZE_READCOUNT( mpa_reports_kraken, ch_genomesizes)
-        .collect()
-        .set{ norm_rc_kr }
-
-    } else { 
-        mpa_reports
-            .collect{it[1]}
-            .set {norm_rc} 
-        mpa_reports_kraken
-            .collect{it[1]}
-            .set {norm_rc_kr}
-    }
-
-    CREATE_TIDYAMPLICONS(norm_rc, "bracken")
-        .map {it.first().getParent()}
-        .set { ta }
-
-    CREATE_TIDYAMPLICONS(norm_rc_kr, "kracken")
-    
-    if (params.test_pipeline){
-        PRINT_TOP10(ta) | view {"$it"}
-    }
-
+    CONVERT_BRACKEN_REPORT_TO_TA(brck_reports)
+    CONVERT_KRAKEN_REPORT_TO_TA(kraken_reports.success)
 }
