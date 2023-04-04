@@ -46,7 +46,7 @@ process CREATE_TIDYAMPLICONS {
     val PREFIX
 
     output:
-    tuple path("tidyamplicons/samples.csv"), path("tidyamplicons/taxa.csv"), path("tidyamplicons/abundances.csv")
+    tuple path("${PREFIX}_tidyamplicons/samples.csv"), path("${PREFIX}_tidyamplicons/taxa.csv"), path("${PREFIX}_tidyamplicons/abundances.csv")
 
 
     script:
