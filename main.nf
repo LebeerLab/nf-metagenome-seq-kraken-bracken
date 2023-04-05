@@ -251,10 +251,13 @@ workflow {
         .join(max_length.success)
         .set {kraken_reportsLength}
 
-    
+    kraken_reportsLength
+	.map{ tuple(it[0], it[1], it[3] )}
+    	.set{ kreports }
+
     BRACKEN(kraken_reportsLength, ch_KrakenDB)
         .set{ brck_reports }
 
     CONVERT_BRACKEN_REPORT_TO_TA(brck_reports)
-    CONVERT_KRAKEN_REPORT_TO_TA(kraken_reports.success)
+    CONVERT_KRAKEN_REPORT_TO_TA(kreports)
 }
