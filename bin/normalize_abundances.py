@@ -38,7 +38,8 @@ def normalize_readcount(abundances, genomesizes, factor):
     df_m = df_ab.merge(df_gs, how="left", on="taxon")
 
     df_m["norm_readcount"] = factor * df_m["readcount"] / df_m["genome_size"]
-    # Give missing genomesizes average size of bact genome...
+    # Give missing genomesizes average size of bact genome... Unless human, then use 3*10e9
+    df_m.loc[df.taxon.str.endswith("Homo sapiens"), "norm_readcount"] = factor * df.readcount / 3*10e9
     df_m["norm_readcount"] = df_m["norm_readcount"].fillna(factor * df_m["readcount"] /38*10e5)
     df_m = df_m.drop(["genome_size", "readcount"], axis=1)
 

@@ -103,7 +103,7 @@ process EXTRACT_PROPORTIONS {
 
     script:
     """
-    python3 extract_bacterial_proportion.py . 
+    extract_bacterial_proportion.py . 
     """
 }
 
