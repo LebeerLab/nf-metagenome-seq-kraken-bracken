@@ -6,9 +6,6 @@ params.outdir = "results"
 params.debug = false
 params.skip_fastp = false
 
-params.debug = false
-params.skip_fastp = false
-
 params.pairedEnd = true
 params.min_reads=800
 
@@ -17,6 +14,7 @@ params.trimLeft = 0
 params.trimRight = 0
 params.minLen = 50
 params.maxN = 2
+
 
 params.b_treshold = 10
 params.confidence = 0
@@ -261,5 +259,5 @@ workflow {
         .set{ brck_reports }
 
     CONVERT_BRACKEN_REPORT_TO_TA(brck_reports)
-    CONVERT_KRAKEN_REPORT_TO_TA(kreports)
+    // CONVERT_KRAKEN_REPORT_TO_TA(kreports)
 }

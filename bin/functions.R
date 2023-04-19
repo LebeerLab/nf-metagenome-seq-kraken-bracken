@@ -2,11 +2,12 @@
 # Last modified: 06/01/2022
 
 # converts per-sample kraken2 results to a taxonomy table
-kraken2taxtable <- function(din_krakensamples, fout_taxtable) {
+kraken2taxtable <- function(din_krakensamples, fout_taxtable, file_pattern=".mpa$") {
   print("working")
-  list.files(din_krakensamples, pattern = ".mpa") %>%
+  list.files(din_krakensamples, pattern = file_pattern) %>%
     {names(.) <- str_extract(., "^[^_]+"); .} %>%
     map(~ read_tsv(
+      skip=1,
       str_c(din_krakensamples, ., sep = "/"), 
       col_names = c("classification", "count"),
       col_types = cols(classification = col_character(), count = col_double()),
@@ -21,6 +22,20 @@ kraken2taxtable <- function(din_krakensamples, fout_taxtable) {
     write_tsv(fout_taxtable)
     
 }
+
+# util to reduce mpa output to taxon-coverage
+select_coverage <- function(din){
+
+	for (file in list.files(din, pattern=".mpa$")){
+		f <- read_tsv(file, skip=1, 
+			col_names = c("taxon","count","genomesize","coverage"),
+			col_types = ("cddd")
+			)
+ 
+		f %>% select(taxon, coverage) %>% rename(count=coverage) %>%
+			write_tsv(paste0(file ,"_cov"))
+	} 
+} 
 
 # needed by kraken2taxtable
 calculate_unclassified <- function(taxa) {
