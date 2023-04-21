@@ -48,7 +48,6 @@ process CREATE_TIDYAMPLICONS {
     output:
     tuple path("${PREFIX}_tidyamplicons/samples.csv"), path("${PREFIX}_tidyamplicons/taxa.csv"), path("${PREFIX}_tidyamplicons/abundances.csv")
 
-
     script:
     """
     #!/usr/bin/env Rscript
@@ -70,6 +69,26 @@ process CREATE_TIDYAMPLICONS {
     ta\$samples\$run <- run
     ta\$samples\$pipeline <- pipeline
 
+    # add genomesizes and norm_readcount to abundances table
+    ## build new ta object with coverage
+    select_coverage(".")
+    kraken2taxtable(".", "taxtable_cov", file_pattern=".mpa_cov")
+    ta_cov <- import_tidyamplicons("taxtable_cov")
+
+    ## left join to original 
+    ## (! this table has different taxon_ids, as it keeps track of higher orders of lower assigned reads)
+    taxid_ref <- ta\$taxa %>% 
+	left_join(ta_cov\$taxa, by=c("family", "genus", "species"), suffix=c(".true", ".false")) 
+    taxid_ref <- taxid_ref %>%
+	select(taxon_id.true, taxon_id.false)
+    # Keep only taxa from original
+    ta_cov\$abundances <- ta_cov\$abundances %>% 
+	filter(taxon_id %in% taxid_ref\$taxon_id.false) %>% 
+	left_join(taxid_ref, by=c("taxon_id" = "taxon_id.false")) %>% 
+	select(-taxon_id) %>% rename(taxon_id = taxon_id.true, coverage = abundance)
+
+    ta\$abundances <- ta\$abundances %>% left_join(ta_cov\$abundances)
+
     # save the tidyamplicons object as three tidy tables
     ta %>% write_tidyamplicons("${PREFIX}_tidyamplicons")
 
@@ -90,6 +109,23 @@ process PRINT_TOP10 {
     """
 }
 
+process EXTRACT_PROPORTIONS {
+    publishDir "${params.OUTPUT}",  mode:  'copy'
+    container params.CONTAINER
+
+    input:
+    path("*")
+
+    output:
+    path("bact_proportions.tsv")
+
+
+    script:
+    """
+    extract_bacterial_proportion.py . 
+    """
+}
+
 workflow CONVERT_REPORT_TO_TA {
     take:
         report_ch
@@ -100,7 +136,7 @@ workflow CONVERT_REPORT_TO_TA {
             .set { mpa_reports }
 
         // Normalize using genome size
-        if (!params.SKIP_NORM){
+        if (params.GENOMESIZES) {
         ch_genomesizes = Channel.value(file ("${params.GENOMESIZES}"))    
 
         NORMALIZE_READCOUNT( mpa_reports, ch_genomesizes )
@@ -110,9 +146,10 @@ workflow CONVERT_REPORT_TO_TA {
         } else { 
             mpa_reports
                 .collect{it[1]}
-                .set {norm_rc} 
+                .set {norm_rc}
         }
 
+	EXTRACT_PROPORTIONS(norm_rc) 
         CREATE_TIDYAMPLICONS(norm_rc, params.REPORT_TYPE)
             .map {it.first().getParent()}
             .set { ta }
