@@ -14,6 +14,8 @@ params.trimLeft = 0
 params.trimRight = 0
 params.minLen = 50
 params.maxN = 2
+params.windowFront = 4
+params.windowTail = 5
 
 
 params.b_treshold = 10
@@ -24,7 +26,9 @@ params.bracken_treshold = 10
 params.genomesizes = null
 
 // INCLUDE MODULES ===============================================================
-include { FASTP; MULTIQC } from './modules/qc' addParams(OUTPUT: "${params.outdir}")
+include { FASTP; MULTIQC } from './modules/qc' addParams(
+    OUTPUT: "${params.outdir}"    
+)
 include { CONVERT_REPORT_TO_TA as CONVERT_BRACKEN_REPORT_TO_TA } from './modules/tidyamplicons' addParams(
     OUTPUT: "${params.outdir}", SKIP_NORM : "${params.skip_norm}", 
     GENOMESIZES : "${params.genomesizes}", TEST_PIPELINE : "${params.test_pipeline}"
@@ -61,6 +65,10 @@ def helpMessage() {
       --trimLeft --trimRight    Trimming on left or right side of reads by fastp. Default = ${params.trimLeft}
       --minLen                  Minimum length of reads kept by fastp. Default = ${params.minLen}
       --maxN                    Maximum amount of uncalled bases N to be kept by fastp. Default = ${params.maxN}
+      --cutFront --cutTail      Remove low quality bases from front or end of the reads.
+      --windowFront/Tail        Size of the sliding window for cutting low quality bases. 
+                                Set to 1 for trailing method. Default = ${params.windowFront} / ${params.windowTail}
+      --tailQual --frontQual    Set a mean quality treshold for cutting low quality bases. Default = ${params.tailQual} / ${params.frontQual}
 
       --b_treshold              Minimum base quality used in classification with Kraken2. Default = ${params.b_treshold}
       --confidence              The confidence used in Kraken2 classfication. Default = ${params.confidence}
