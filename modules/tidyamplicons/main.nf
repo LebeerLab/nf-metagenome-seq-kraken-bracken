@@ -109,23 +109,6 @@ process PRINT_TOP10 {
     """
 }
 
-process EXTRACT_PROPORTIONS {
-    publishDir "${params.OUTPUT}",  mode:  'copy'
-    container params.CONTAINER
-
-    input:
-    path("*")
-
-    output:
-    path("bact_proportions.tsv")
-
-
-    script:
-    """
-    extract_bacterial_proportion.py . 
-    """
-}
-
 workflow CONVERT_REPORT_TO_TA {
     take:
         report_ch
@@ -149,7 +132,6 @@ workflow CONVERT_REPORT_TO_TA {
                 .set {norm_rc}
         }
 
-	EXTRACT_PROPORTIONS(norm_rc) 
         CREATE_TIDYAMPLICONS(norm_rc, params.REPORT_TYPE)
             .map {it.first().getParent()}
             .set { ta }
