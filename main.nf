@@ -17,17 +17,10 @@ params.maxN = 2
 params.windowFront = 4
 params.windowTail = 5
 
-
-params.b_treshold = 10
-params.confidence = 0
-params.min_hit_groups = 2
-params.bracken_treshold = 10
-
 params.genomesizes = null
 
 // INCLUDE WORKFLOW ==============================================================
-
-include { KRACKEN_BRACKEN } from './workflows/kracken_bracken'
+include { KRACKEN_BRACKEN } from './modules/kracken_bracken'
 
 // INCLUDE MODULES ===============================================================
 include { FASTP; MULTIQC } from './modules/qc' addParams(
@@ -166,7 +159,8 @@ workflow {
     }
 
     KRACKEN_BRACKEN(filteredReads)
-    
+    //TODO: WRITE METABULI SWITH
+
     CONVERT_BRACKEN_REPORT_TO_TA(KRACKEN_BRACKEN.out)
     // CONVERT_KRAKEN_REPORT_TO_TA(kreports)
 }
