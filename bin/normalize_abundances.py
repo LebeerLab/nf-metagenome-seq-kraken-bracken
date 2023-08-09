@@ -33,7 +33,7 @@ def normalize_readcount(abundances, genomesizes, factor):
     df_gs["taxon"] = df_gs["taxon"].apply(
         lambda x: x.replace(";", "|").replace("__", "_")
     )
-    # Alternative
+
     df_ab_spl = add_aggregated_genome_sizes(df_ab)
     df_gs_spl = add_aggregated_genome_sizes(df_gs)
     TAXA_LVLS.reverse()
@@ -60,7 +60,6 @@ def normalize_readcount(abundances, genomesizes, factor):
     df_m.loc[df_m.taxon.str.endswith("Homo sapiens"), "genome_size"] = 3*10e9
     df_m["genome_size"] = df_m["genome_size"].fillna(38*10e5)
     df_m["norm_readcount"] = factor * df_m["readcount"] / df_m["genome_size"]
-
     return df_m
 
 

@@ -16,7 +16,6 @@ params.minLen = 50
 params.maxN = 2
 params.windowFront = 4
 params.windowTail = 5
-
 params.genomesizes = null
 
 // INCLUDE WORKFLOW ==============================================================
@@ -122,6 +121,8 @@ process WRITE_READCOUNTS {
 }
 
 
+
+
 workflow {
 
     paramsUsed()
@@ -159,8 +160,6 @@ workflow {
     }
 
     KRACKEN_BRACKEN(filteredReads)
-    //TODO: WRITE METABULI SWITH
-
+    //TODO: WRITE METABULI SWITCH
     CONVERT_BRACKEN_REPORT_TO_TA(KRACKEN_BRACKEN.out)
-    // CONVERT_KRAKEN_REPORT_TO_TA(kreports)
 }
