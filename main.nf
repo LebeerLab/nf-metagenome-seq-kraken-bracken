@@ -29,11 +29,6 @@ include { CONVERT_REPORT_TO_TA as CONVERT_BRACKEN_REPORT_TO_TA } from './modules
     OUTPUT: "${params.outdir}", SKIP_NORM : "${params.skip_norm}", 
     GENOMESIZES : "${params.genomesizes}", TEST_PIPELINE : "${params.test_pipeline}"
 )
-include { CONVERT_REPORT_TO_TA as CONVERT_KRAKEN_REPORT_TO_TA } from './modules/tidyamplicons' addParams(
-    OUTPUT: "${params.outdir}", SKIP_NORM : "${params.skip_norm}", 
-    GENOMESIZES : "${params.genomesizes}", TEST_PIPELINE : "${params.test_pipeline}",
-    REPORT_TYPE : "kraken"
-)
 
 //======= INFO ===================================================================
 def helpMessage() {
