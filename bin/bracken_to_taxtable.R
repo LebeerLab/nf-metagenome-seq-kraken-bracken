@@ -109,13 +109,5 @@ ta <- import_tidyamplicons("taxtable")
 ta$samples$run <- run
 ta$samples$pipeline <- pipeline
 
-# add genomesizes and norm_readcount to abundances table
-## build new ta object with coverage
-
-ta %>% write_tidyamplicons("ta_interm")
-
-#ta$abundances <- ta$abundances %>% 
-#left_join(ta_cov$abundances, by=c("taxon_id", "sample_id"))
-
 # save the tidyamplicons object as three tidy tables
 ta %>% write_tidyamplicons("tidyamplicons")
