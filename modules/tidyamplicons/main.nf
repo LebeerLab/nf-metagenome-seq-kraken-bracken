@@ -12,14 +12,16 @@ process CONVERT_MPA {
     //publishDir "${params.OUTPUT}/mpa"
 
     input:
-    tuple val(pair_id), path(brck_rpt), val(readlen) 
+    tuple val(pair_id), path(brck_rpt)
 
     output:
-    tuple val(pair_id), path("${pair_id}_bracken.report.mpa"), val(readlen) 
+    tuple val(pair_id), path("${pair_id}_bracken.report.mpa")
+
+    def converter = (params.profiler == "kraken") ? "kreport2mpa.py" : "mbuli2mpa.py"
 
     script:
     """
-    kreport2mpa.py -r ${brck_rpt} -o "${pair_id}_bracken.report.mpa"
+    ${converter} -r ${brck_rpt} -o "${pair_id}_bracken.report.mpa"
     """
 }
 
@@ -61,11 +63,11 @@ process CREATE_TIDYAMPLICONS {
 workflow CONVERT_REPORT_TO_TA {
     take:
         report_ch
+        readlen
 
     main:
         // Convert to mpa format
         CONVERT_MPA( report_ch )
-
         CONVERT_MPA.out
             .collect{ it[1] }
             .set { mpa_reports }
@@ -76,11 +78,6 @@ workflow CONVERT_REPORT_TO_TA {
 
         if (params.GENOMESIZES) {
             ch_genomesizes = Channel.value(file ("${params.GENOMESIZES}"))    
-
-            readlen = CONVERT_MPA.out
-                        .map{it[2].toInteger()}.min()
-
-            readlen.view()
 
             NORMALIZE_READCOUNT( CREATE_TIDYAMPLICONS.out, ch_genomesizes, readlen )
 

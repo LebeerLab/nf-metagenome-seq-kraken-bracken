@@ -3,6 +3,27 @@ params.confidence = 0
 params.min_hit_groups = 2
 params.bracken_treshold = 10
 
+process DETERMINE_MIN_LENGTH {
+    tag "${pair_id}"
+
+    input:
+    tuple val(pair_id), path(reads)
+
+    output:
+    tuple val(pair_id), path(reads), stdout
+
+
+    script:
+    def single = reads instanceof Path
+
+    def read1 = !single ? "${reads[0]}" : "${reads}"
+    def read2 = !single ? "${reads[1]}" : '' 
+    """
+    determine_minlen.py ${read1} ${read2}
+    """
+    
+}
+
 process KRAKEN {
     tag "${pair_id}"
     publishDir "${params.outdir}/kraken", mode: 'copy'
@@ -41,7 +62,7 @@ process BRACKEN {
     path db
 
     output:
-    tuple val(pair_id), path("${pair_id}_bracken.report"), val(min_len) 
+    tuple val(pair_id), path("${pair_id}_bracken.report"), val(min_len)
     //path("${pair_id}_bracken.out")
     
     script:
@@ -51,27 +72,6 @@ process BRACKEN {
     -o "${pair_id}_bracken.out" -t ${params.bracken_treshold} -r ${minLen}     
     """
 
-}
-
-process DETERMINE_MIN_LENGTH {
-    tag "${pair_id}"
-
-    input:
-    tuple val(pair_id), path(reads)
-
-    output:
-    tuple val(pair_id), path(reads), stdout
-
-
-    script:
-    def single = reads instanceof Path
-
-    def read1 = !single ? "${reads[0]}" : "${reads}"
-    def read2 = !single ? "${reads[1]}" : '' 
-    """
-    determine_minlen.py ${read1} ${read2}
-    """
-    
 }
 
 workflow KRACKEN_BRACKEN {
