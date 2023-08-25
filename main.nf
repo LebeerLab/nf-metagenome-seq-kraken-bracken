@@ -24,7 +24,9 @@ params.genomesizes = null
 include { KRACKEN_BRACKEN } from './modules/kracken_bracken'
 
 // INCLUDE MODULES ===============================================================
-include { METABULI_CLASSIFY } from './modules/metabuli/classify'
+include { METABULI_CLASSIFY } from './modules/metabuli/classify' addParams(
+    OUTPUT : "${params.outdir}"
+)
 include { DETERMINE_MIN_LENGTH as GET_MINLEN} from './modules/kracken_bracken'
 include { FASTP; MULTIQC } from './modules/qc' addParams(
     OUTPUT: "${params.outdir}"    
@@ -179,7 +181,6 @@ workflow {
         filteredReads = reads.success
     }
 
-    //TODO: WRITE METABULI SWITCH
     PROFILING(filteredReads)
     
 }

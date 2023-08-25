@@ -4,6 +4,8 @@ process METABULI_CLASSIFY {
     tag "$meta"
     label 'process_medium'
 
+    cpus 20
+
     publishDir "${params.OUTPUT}/metabuli/class", pattern: "*/*_classifications.tsv", mode: "copy"
     publishDir "${params.OUTPUT}/metabuli/reports", pattern: "*/*report.tsv", mode: "copy"
     publishDir "${params.OUTPUT}/metabuli/krona", pattern: "*/*_krona.html", mode: "copy"
