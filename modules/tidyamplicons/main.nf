@@ -42,14 +42,16 @@ process NORMALIZE_READCOUNT {
 }
 
 process CREATE_TIDYAMPLICONS {
-    //publishDir "${params.OUTPUT}/temp",  mode:  'copy'
+    publishDir "${params.OUTPUT}",  mode:  'copy', pattern: "tidyamplicons/*"
+    //publishDir "${params.OUTPUT}/tidyamplicons",  mode:  'copy', pattern: "taxtable"
     container params.CONTAINER
 
     input:
     path(mpas)
 
     output:
-    tuple path("tidyamplicons/samples.csv"), path("tidyamplicons/taxa.csv"), path("tidyamplicons/abundances.csv")
+    tuple path("tidyamplicons/samples.csv"), path("tidyamplicons/taxa.csv"), path("tidyamplicons/abundances.csv"), emit: ta
+    path("taxtable"), emit: taxtable
 
     script:
     """
@@ -57,14 +59,38 @@ process CREATE_TIDYAMPLICONS {
     """
 }
 
+process ADD_ASVS{
+    publishDir "${params.OUTPUT}/tidyamplicons",  mode:  'copy'
+    
+    input:
+    path(taxa)
+    path(sequences)
+
+    output:
+    path("taxa.csv")
+    
+    script:
+    """
+    cat * > all_sequences
+    add_sequences_to_ta.py $taxa all_sequences
+    """
+
+}
+
 
 workflow CONVERT_REPORT_TO_TA {
     take:
-        report_ch
+        reports
+        min_len
+        sequences
 
     main:
         // Convert to mpa format
-        CONVERT_MPA( report_ch )
+
+        reports.join(min_len)
+            .set{reports_len}
+        
+        CONVERT_MPA( reports_len )
 
         CONVERT_MPA.out
             .collect{ it[1] }
@@ -74,16 +100,19 @@ workflow CONVERT_REPORT_TO_TA {
 
         // Normalize using genome size
 
-        if (params.GENOMESIZES) {
+        if (!params.SKIP_NORM) {
             ch_genomesizes = Channel.value(file ("${params.GENOMESIZES}"))    
 
             readlen = CONVERT_MPA.out
                         .map{it[2].toInteger()}.min()
 
-            readlen.view()
+            NORMALIZE_READCOUNT( CREATE_TIDYAMPLICONS.out.ta, ch_genomesizes, readlen )
 
-            NORMALIZE_READCOUNT( CREATE_TIDYAMPLICONS.out, ch_genomesizes, readlen )
-
+        } else {
+            taxa = CREATE_TIDYAMPLICONS.out.ta.map{ it[1] }
+            seqs = sequences.collect{ it[1] }
+            
+            ADD_ASVS(taxa, seqs)
         }
 }
 

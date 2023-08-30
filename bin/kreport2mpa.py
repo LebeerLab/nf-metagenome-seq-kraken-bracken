@@ -83,7 +83,13 @@ def process_kraken_report(curr_str):
             break
     # Determine level based on number of spaces
     level_num = spaces / 2
-    return [name, level_num, level_type, all_reads]
+    taxid = split_str[4]
+    return [name, level_num, level_type, all_reads, taxid]
+
+def add_prefix_if_missing(tax, prefix):
+    if tax.startswith(prefix):
+        return tax
+    return f"{prefix}{tax}"
 
 
 # Main method
@@ -141,7 +147,7 @@ def main():
         o_file.write(args.r_file + "\n")
 
     # Read through report file
-    main_lvls = ["D", "P", "C", "O", "F", "G", "S"]
+    main_lvls = ["D", "P", "C", "O", "F", "G", "S", "S1"]
     domains = ["Eukarya", "Bacteria", "Eukarya", "Archaebacteria"]
     for line in r_file:
         report_vals = process_kraken_report(line)
@@ -149,7 +155,7 @@ def main():
         if len(report_vals) < 4:
             continue
         # Get relevant information from the line
-        [name, level_num, level_type, all_reads] = report_vals
+        [name, level_num, level_type, all_reads, taxid] = report_vals
         if level_type == "U":
             continue
         # Create level name
@@ -158,9 +164,9 @@ def main():
         # domains outputted as R1 in our db due to abscence of cellular organisms R1 level (no viral dna)
         if level_type == "D" or (level_type == "x" and name in domains):
             level_type = "D"
-            level_str = f"d_{name}"
+            level_str = add_prefix_if_missing(name, "d_")
         else:
-            level_str = level_type.lower() + "_" + name
+            level_str = add_prefix_if_missing(name, f"{level_type.lower()}_")
         # Determine full string to add
         if prev_lvl_num == -1:
             # First level
@@ -178,7 +184,7 @@ def main():
                     if (string[0] == "x" and args.x_include) or string[0] != "x":
                         o_file.write(string + "|")
                 # Print final level and then number of reads
-                o_file.write(level_str + "\t" + str(all_reads) + "\n")
+                o_file.write("{}\t{}\t{}\n".format(level_str, str(all_reads),taxid))
             # Update
             curr_path.append(level_str)
             prev_lvl_num = level_num

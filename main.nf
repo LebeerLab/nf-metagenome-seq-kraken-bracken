@@ -155,6 +155,6 @@ workflow {
     }
 
     KRACKEN_BRACKEN(filteredReads)
-    //TODO: WRITE METABULI SWITCH
+
     CONVERT_BRACKEN_REPORT_TO_TA(KRACKEN_BRACKEN.out)
 }
