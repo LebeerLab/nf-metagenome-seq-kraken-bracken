@@ -1,5 +1,6 @@
 // PARAMS ======================================================================
 params.reads = "${projectDir}data/samples/*_R{1,2}_001.fastq.gz"
+params.profiler = "kraken"
 params.krakendb = "/mnt/ramdisk/krakendb"
 params.outdir = "results"
 
@@ -18,14 +19,19 @@ params.windowFront = 4
 params.windowTail = 5
 params.genomesizes = null
 
+
 // INCLUDE WORKFLOW ==============================================================
 include { KRACKEN_BRACKEN } from './modules/kracken_bracken'
 
 // INCLUDE MODULES ===============================================================
+include { METABULI_CLASSIFY } from './modules/metabuli/classify' addParams(
+    OUTPUT : "${params.outdir}"
+)
+include { DETERMINE_MIN_LENGTH as GET_MINLEN} from './modules/kracken_bracken'
 include { FASTP; MULTIQC } from './modules/qc' addParams(
     OUTPUT: "${params.outdir}"    
 )
-include { CONVERT_REPORT_TO_TA as CONVERT_BRACKEN_REPORT_TO_TA } from './modules/tidyamplicons' addParams(
+include { CONVERT_REPORT_TO_TA; MERGE_ASV_SEQUENCES} from './modules/tidyamplicons' addParams(
     OUTPUT: "${params.outdir}", SKIP_NORM : "${params.skip_norm}", 
     GENOMESIZES : "${params.genomesizes}", TEST_PIPELINE : "${params.test_pipeline}"
 )
@@ -116,7 +122,28 @@ process WRITE_READCOUNTS {
 }
 
 
+workflow PROFILING {
+    take: reads
 
+    main:
+
+    if (params.profiler == "kraken") {
+        KRACKEN_BRACKEN(reads)
+        CONVERT_REPORT_TO_TA(KRACKEN_BRACKEN.out.reports, KRACKEN_BRACKEN.out.min_len)
+        MERGE_ASV_SEQUENCES(CONVERT_REPORT_TO_TA.out.ta, KRACKEN_BRACKEN.out.sequences)
+
+    } else if (params.profiler == "metabuli") {
+        ch_MetabuliDB = Channel.value(file ("${params.metabulidb}"))
+        METABULI_CLASSIFY(reads, ch_MetabuliDB)
+        profile = METABULI_CLASSIFY.out.report
+        minlen = GET_MINLEN(reads).map{it[2].toInteger()}.min()
+        CONVERT_REPORT_TO_TA(profile, minlen)
+
+    } else {
+        error "Not a valid profiler: ${params.profiler}"
+    }
+
+}
 
 workflow {
 
@@ -154,7 +181,6 @@ workflow {
         filteredReads = reads.success
     }
 
-    KRACKEN_BRACKEN(filteredReads)
-
-    CONVERT_BRACKEN_REPORT_TO_TA(KRACKEN_BRACKEN.out)
+    PROFILING(filteredReads)
+    
 }

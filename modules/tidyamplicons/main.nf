@@ -12,14 +12,16 @@ process CONVERT_MPA {
     //publishDir "${params.OUTPUT}/mpa"
 
     input:
-    tuple val(pair_id), path(brck_rpt), val(readlen) 
+    tuple val(pair_id), path(brck_rpt), val(readlen)
 
     output:
-    tuple val(pair_id), path("${pair_id}_bracken.report.mpa"), val(readlen) 
+    tuple val(pair_id), path("${pair_id}_bracken.report.mpa"), val(readlen)
+
+    def converter = (params.profiler == "kraken") ? "kreport2mpa.py" : "mbuli2mpa.py"
 
     script:
     """
-    kreport2mpa.py -r ${brck_rpt} -o "${pair_id}_bracken.report.mpa"
+    ${converter} -r ${brck_rpt} -o "${pair_id}_bracken.report.mpa"
     """
 }
 
@@ -27,7 +29,7 @@ process NORMALIZE_READCOUNT {
     publishDir "${params.OUTPUT}",  mode:  'copy'
 
     input:
-    tuple path("tidyamplicons/samples.csv"), path("tidyamplicons/taxa.csv"), path("tidyamplicons/abundances.csv") 
+    tuple path("tidyamplicons/samples.csv"), path("tidyamplicons/taxa.csv"), path("tidyamplicons/abundances.csv"), emit: ta
     path(genomesizes)
     val(readlen)
 
@@ -82,7 +84,6 @@ workflow CONVERT_REPORT_TO_TA {
     take:
         reports
         min_len
-        sequences
 
     main:
         // Convert to mpa format
@@ -103,16 +104,24 @@ workflow CONVERT_REPORT_TO_TA {
         if (!params.SKIP_NORM) {
             ch_genomesizes = Channel.value(file ("${params.GENOMESIZES}"))    
 
-            readlen = CONVERT_MPA.out
-                        .map{it[2].toInteger()}.min()
-
-            NORMALIZE_READCOUNT( CREATE_TIDYAMPLICONS.out.ta, ch_genomesizes, readlen )
-
+            NORMALIZE_READCOUNT( CREATE_TIDYAMPLICONS.out, ch_genomesizes, min_len )
+            tidyamplicons = NORMALIZE_READCOUNT.out.ta
         } else {
-            taxa = CREATE_TIDYAMPLICONS.out.ta.map{ it[1] }
-            seqs = sequences.collect{ it[1] }
-            
-            ADD_ASVS(taxa, seqs)
+            tidyamplicons = CREATE_TIDYAMPLICONS.out.ta
         }
+    
+    emit:
+    ta = tidyamplicons
+
 }
 
+workflow MERGE_ASV_SEQUENCES {
+    take:
+    tidyamplicons
+    sequences
+
+    main:
+    taxa = tidyamplicons.map{ it[1] }
+    seqs = sequences.collect{ it[1] }
+    ADD_ASVS(taxa, seqs)
+}
