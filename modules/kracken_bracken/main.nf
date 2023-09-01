@@ -1,8 +1,8 @@
-params.b_treshold = 10
-params.confidence = 0
-params.min_hit_groups = 2
-params.bracken_treshold = 10
-params.level = "S"
+BASE_QUAL= 10
+CONF = 0
+MIN_HIT_GROUP = 2
+BRACKEN_TRESH = 10
+LEVEL = "S"
 
 process KRAKEN {
     tag "${pair_id}"
@@ -33,8 +33,8 @@ process KRAKEN {
 
     """
     kraken2 --db "${db}" --report "${report}" --threads ${task.cpus} \
-    --minimum-base-quality ${params.b_treshold} --confidence ${params.confidence} \
-    --classified-out "$classif" --minimum-hit-groups ${params.min_hit_groups} \
+    --minimum-base-quality $BASE_QUAL --confidence $CONF \
+    --classified-out "$classif" --minimum-hit-groups $MIN_HIT_GROUP \
     --memory-mapping ${mode} "${read1}" "${read2}" > $outp
     """
 
@@ -59,7 +59,7 @@ process BRACKEN {
     def minLen = params.test_pipeline ? 100 : min_len
     """
     bracken -d ${db} -i ${kraken_rpt}  -w "${pair_id}.bracken.report" \
-    -o "${pair_id}.bracken.out" -l ${params.level} -t ${params.bracken_treshold} -r ${minLen}   
+    -o "${pair_id}.bracken.out" -l $LEVEL -t $BRACKEN_TRESH -r ${minLen}   
     """
 
 }
@@ -91,7 +91,7 @@ process EXTRACT_SEQUENCES {
     publishDir "${params.outdir}/bracken/sequences", mode: 'copy'
 
     input:
-    tuple val(pair_id), path(kraken2_out), path(bracken_report), path(classified_reads)
+    tuple val(pair_id), path(kraken2_out), path(classified_reads), path(kreport)
 
     output:
     tuple val(pair_id), path("*_sequences")
@@ -104,8 +104,10 @@ process EXTRACT_SEQUENCES {
     def read1 = !single ? "${classified_reads[0]}" : "${classified_reads}"
     
     """
-    tail +2 $bracken_report | cut -f 5 > taxids
+    kreport2mpa.py -r $kreport -o mpa
+    tail +2 $kraken2_out | cut -f 3 > taxids
     kraken-extract.py --kraken $kraken2_out --taxids taxids $read1 > "${pair_id}_sequences"
+    aggregate_tax_levels.py "${pair_id}_sequences" mpa --level $LEVEL
     """
 }
 
@@ -146,7 +148,7 @@ workflow KRACKEN_BRACKEN {
 
         BRACKEN(kraken_reportsLength, ch_KrakenDB)
 
-        KRAKEN.out.raw_output.join(BRACKEN.out.reports).join(KRAKEN.out.classified_reads)
+        KRAKEN.out.raw_output.join(KRAKEN.out.classified_reads).join(KRAKEN.out.reports)
             .set{ sequences_input }
 
         EXTRACT_SEQUENCES(sequences_input)

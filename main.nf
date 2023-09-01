@@ -17,11 +17,22 @@ params.minLen = 50
 params.maxN = 2
 params.windowFront = 4
 params.windowTail = 5
+
+params.b_treshold = 10
+params.confidence = 0.05
+params.level = "S"
+
 params.genomesizes = null
 
 
 // INCLUDE WORKFLOW ==============================================================
-include { KRACKEN_BRACKEN } from './modules/kracken_bracken'
+include { KRACKEN_BRACKEN } from './modules/kracken_bracken' addParams(
+    BASE_QUAL : params.b_treshold,
+    LEVEL : params.level,
+    CONF : params.confidence,
+    BRACKEN_TRESH : params.bracken_treshold,
+    MIN_HIT_GROUP : params.min_hit_groups
+)
 
 // INCLUDE MODULES ===============================================================
 include { METABULI_CLASSIFY } from './modules/metabuli/classify' addParams(
@@ -95,6 +106,7 @@ def paramsUsed() {
     
     BRACKEN:
     bracken_treshold: ${params.bracken_treshold}
+    level:            ${params.level}
 
     ABUNDANCE NORMALIZATION:
     genomesizes:      ${params.genomesizes}

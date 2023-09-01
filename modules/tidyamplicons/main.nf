@@ -4,7 +4,6 @@ params.OUTPUT = "results"
 params.SKIP_NORM = true
 params.GENOMESIZES = null
 params.TEST_PIPELINE = false
-params.REPORT_TYPE = "bracken"
 params.readlen = 50
 
 process CONVERT_MPA {
@@ -47,7 +46,7 @@ process CREATE_TIDYAMPLICONS {
     publishDir "${params.OUTPUT}",  mode:  'copy', pattern: "tidyamplicons/*"
     //publishDir "${params.OUTPUT}/tidyamplicons",  mode:  'copy', pattern: "taxtable"
     container params.CONTAINER
-
+    
     input:
     path(mpas)
 
@@ -73,7 +72,7 @@ process ADD_ASVS{
     
     script:
     """
-    cat * > all_sequences
+    cat *_sequences > all_sequences
     add_sequences_to_ta.py $taxa all_sequences
     """
 
