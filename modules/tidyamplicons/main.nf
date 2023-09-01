@@ -122,6 +122,6 @@ workflow MERGE_ASV_SEQUENCES {
 
     main:
     taxa = tidyamplicons.map{ it[1] }
-    seqs = sequences.collect{ it[1] }
-    ADD_ASVS(taxa, seqs)
+    ADD_ASVS(taxa, sequences)
+
 }

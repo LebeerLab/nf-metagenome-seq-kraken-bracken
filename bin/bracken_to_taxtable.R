@@ -24,7 +24,7 @@ kraken2taxtable <- function(din_krakensamples, fout_taxtable, file_pattern=".mpa
     keep(~ nrow(.) != 0) %>%
     map(calculate_unclassified) %>%
     #map2(., names(.), ~ {names(.x) <- c("classification", .y); .x}) %>%
-    map2(., names(.), ~ {names(.x) <- c("classification", "taxid", "readcount"); .x}) %>%
+    map2(., names(.), ~ {names(.x) <- c("classification", "taxid", .y); .x}) %>%
     reduce(., full_join, by = c("classification", "taxid")) %>%
     replace(., is.na(.), 0) 
     

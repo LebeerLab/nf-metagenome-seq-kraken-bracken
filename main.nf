@@ -130,7 +130,12 @@ workflow PROFILING {
     if (params.profiler == "kraken") {
         KRACKEN_BRACKEN(reads)
         CONVERT_REPORT_TO_TA(KRACKEN_BRACKEN.out.reports, KRACKEN_BRACKEN.out.min_len)
-        MERGE_ASV_SEQUENCES(CONVERT_REPORT_TO_TA.out.ta, KRACKEN_BRACKEN.out.sequences)
+        KRACKEN_BRACKEN.out.sequences
+            .map{it -> it[1]}
+            .collect()
+            .set{ all_sequences }
+	
+        MERGE_ASV_SEQUENCES(CONVERT_REPORT_TO_TA.out.ta, all_sequences)
 
     } else if (params.profiler == "metabuli") {
         ch_MetabuliDB = Channel.value(file ("${params.metabulidb}"))

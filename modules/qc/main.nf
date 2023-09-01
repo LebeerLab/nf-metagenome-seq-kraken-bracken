@@ -4,7 +4,7 @@ params.OUTPUT = "results"
 
 process FASTP {
     tag "${pair_id}"    
-    publishDir "${params.OUTPUT}/fastp", mode: 'copy'
+    //publishDir "${params.OUTPUT}/fastp", mode: 'copy'
     
     container params.CONTAINER
 
