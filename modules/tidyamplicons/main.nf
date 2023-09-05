@@ -28,12 +28,12 @@ process NORMALIZE_READCOUNT {
     publishDir "${params.OUTPUT}",  mode:  'copy'
 
     input:
-    tuple path("tidyamplicons/samples.csv"), path("tidyamplicons/taxa.csv"), path("tidyamplicons/abundances.csv"), emit: ta
+    tuple path("tidyamplicons/samples.csv"), path("tidyamplicons/taxa.csv"), path("tidyamplicons/abundances.csv")
     path(genomesizes)
     val(readlen)
 
     output:
-    tuple path("tidyamplicons_coverage/samples.csv"), path("tidyamplicons_coverage/taxa.csv"), path("tidyamplicons_coverage/abundances.csv") 
+    tuple path("tidyamplicons_coverage/samples.csv"), path("tidyamplicons_coverage/taxa.csv"), path("tidyamplicons_coverage/abundances.csv"), emit: ta 
 
     
     script:
@@ -43,8 +43,7 @@ process NORMALIZE_READCOUNT {
 }
 
 process CREATE_TIDYAMPLICONS {
-    publishDir "${params.OUTPUT}",  mode:  'copy', pattern: "tidyamplicons/*"
-    //publishDir "${params.OUTPUT}/tidyamplicons",  mode:  'copy', pattern: "taxtable"
+    //publishDir "${params.OUTPUT}/temp",  mode:  'copy'
     container params.CONTAINER
     
     input:
@@ -52,30 +51,11 @@ process CREATE_TIDYAMPLICONS {
 
     output:
     tuple path("tidyamplicons/samples.csv"), path("tidyamplicons/taxa.csv"), path("tidyamplicons/abundances.csv"), emit: ta
-    path("taxtable"), emit: taxtable
 
     script:
     """
     bracken_to_taxtable.R "${launchDir.getName()}"
     """
-}
-
-process ADD_ASVS{
-    publishDir "${params.OUTPUT}/tidyamplicons",  mode:  'copy'
-    
-    input:
-    path(taxa)
-    path(sequences)
-
-    output:
-    path("taxa.csv")
-    
-    script:
-    """
-    cat *_sequences > all_sequences
-    add_sequences_to_ta.py $taxa all_sequences
-    """
-
 }
 
 
@@ -86,11 +66,9 @@ workflow CONVERT_REPORT_TO_TA {
 
     main:
         // Convert to mpa format
-
         reports.join(min_len)
-            .set{reports_len}
-        
-        CONVERT_MPA( reports_len )
+            .set{ report_ch }
+        CONVERT_MPA( report_ch )
 
         CONVERT_MPA.out
             .collect{ it[1] }
@@ -100,11 +78,15 @@ workflow CONVERT_REPORT_TO_TA {
 
         // Normalize using genome size
 
-        if (!params.SKIP_NORM) {
+        if (params.GENOMESIZES) {
             ch_genomesizes = Channel.value(file ("${params.GENOMESIZES}"))    
 
-            NORMALIZE_READCOUNT( CREATE_TIDYAMPLICONS.out, ch_genomesizes, min_len )
+            readlen = CONVERT_MPA.out
+                        .map{it[2].toInteger()}.min()
+
+            NORMALIZE_READCOUNT( CREATE_TIDYAMPLICONS.out.ta, ch_genomesizes, readlen )
             tidyamplicons = NORMALIZE_READCOUNT.out.ta
+
         } else {
             tidyamplicons = CREATE_TIDYAMPLICONS.out.ta
         }
@@ -114,13 +96,3 @@ workflow CONVERT_REPORT_TO_TA {
 
 }
 
-workflow MERGE_ASV_SEQUENCES {
-    take:
-    tidyamplicons
-    sequences
-
-    main:
-    taxa = tidyamplicons.map{ it[1] }
-    ADD_ASVS(taxa, sequences)
-
-}

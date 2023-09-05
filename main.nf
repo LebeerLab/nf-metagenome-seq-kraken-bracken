@@ -42,7 +42,7 @@ include { DETERMINE_MIN_LENGTH as GET_MINLEN} from './modules/kracken_bracken'
 include { FASTP; MULTIQC } from './modules/qc' addParams(
     OUTPUT: "${params.outdir}"    
 )
-include { CONVERT_REPORT_TO_TA; MERGE_ASV_SEQUENCES} from './modules/tidyamplicons' addParams(
+include { CONVERT_REPORT_TO_TA} from './modules/tidyamplicons' addParams(
     OUTPUT: "${params.outdir}", SKIP_NORM : "${params.skip_norm}", 
     GENOMESIZES : "${params.genomesizes}", TEST_PIPELINE : "${params.test_pipeline}"
 )
@@ -142,12 +142,6 @@ workflow PROFILING {
     if (params.profiler == "kraken") {
         KRACKEN_BRACKEN(reads)
         CONVERT_REPORT_TO_TA(KRACKEN_BRACKEN.out.reports, KRACKEN_BRACKEN.out.min_len)
-        KRACKEN_BRACKEN.out.sequences
-            .map{it -> it[1]}
-            .collect()
-            .set{ all_sequences }
-	
-        MERGE_ASV_SEQUENCES(CONVERT_REPORT_TO_TA.out.ta, all_sequences)
 
     } else if (params.profiler == "metabuli") {
         ch_MetabuliDB = Channel.value(file ("${params.metabulidb}"))
@@ -199,5 +193,4 @@ workflow {
     }
 
     PROFILING(filteredReads)
-    
 }

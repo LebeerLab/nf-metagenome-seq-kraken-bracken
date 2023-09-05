@@ -6,10 +6,7 @@ LEVEL = "S"
 
 process KRAKEN {
     tag "${pair_id}"
-    publishDir "${params.outdir}/kraken", mode: 'copy', pattern: "*.kraken2.report"
-    //publishDir "${params.outdir}/kraken/raw", mode: 'copy', pattern: "*.kraken2.out"
-    //publishDir "${params.outdir}/kraken/reads", mode: 'copy', pattern: "*.fq"
-    
+    publishDir "${params.outdir}/kraken", mode: 'copy'
 
     input:
     tuple val(pair_id), path(reads)
@@ -28,8 +25,6 @@ process KRAKEN {
     def mode = !single ? "--paired" : "" 
 
     def report = pair_id + ".kraken2.report"
-    def classif = pair_id + "_classified_#.fq"
-    def outp = pair_id + ".kraken2.out"   
 
     """
     kraken2 --db "${db}" --report "${report}" --threads ${task.cpus} \
@@ -42,19 +37,18 @@ process KRAKEN {
 
 process BRACKEN {
     tag "${pair_id}"
-    publishDir "${params.outdir}/bracken", mode: 'copy', pattern: "*.bracken.report"
-    //publishDir "${params.outdir}/bracken/raw", mode: 'copy', pattern: "*.bracken.out"
-    
+    publishDir "${params.outdir}/bracken", mode: 'copy'
 
     input:
     tuple val(pair_id) , path(kraken_rpt), path(reads), val(min_len)
     path db
 
     output:
-    tuple val(pair_id), path("${pair_id}.bracken.report"), emit: reports 
-    tuple val(pair_id), path("${pair_id}.bracken.out"), emit: raw_output
-    tuple val(pair_id), val(min_len), emit: min_len
-
+    tuple val(pair_id), path("${pair_id}.bracken.report"), emit: reports
+    tuple val(pair_id), path("${pair_id}.bracken.out")
+    tuple val(pair_id), val(min_len), emit: min_len 
+    //path("${pair_id}_bracken.out")
+    
     script:
     def minLen = params.test_pipeline ? 100 : min_len
     """
@@ -85,34 +79,6 @@ process DETERMINE_MIN_LENGTH {
     
 }
 
-
-process EXTRACT_SEQUENCES {
-    tag "${pair_id}"
-    publishDir "${params.outdir}/bracken/sequences", mode: 'copy'
-
-    input:
-    tuple val(pair_id), path(kraken2_out), path(classified_reads), path(kreport)
-
-    output:
-    tuple val(pair_id), path("*_sequences")
-
-
-    script:
-    
-    def single = classified_reads instanceof Path
-
-    def read1 = !single ? "${classified_reads[0]}" : "${classified_reads}"
-    
-    """
-    kreport2mpa.py -r $kreport -o mpa
-    tail +2 $kraken2_out | cut -f 3 > taxids
-    kraken-extract.py --kraken $kraken2_out --taxids taxids $read1 > "${pair_id}_sequences"
-    aggregate_tax_levels.py "${pair_id}_sequences" mpa --level $LEVEL
-    """
-}
-
-
-
 workflow KRACKEN_BRACKEN {
     take: reads
 
@@ -120,7 +86,7 @@ workflow KRACKEN_BRACKEN {
         ch_KrakenDB = Channel.value(file ("${params.krakendb}"))
 
         KRAKEN(reads, ch_KrakenDB)
-	    KRAKEN.out.reports
+        KRAKEN.out.reports
             .branch {
                 success: it[1].countLines() > 1
                 failed: it[1].countLines() == 1
@@ -148,13 +114,7 @@ workflow KRACKEN_BRACKEN {
 
         BRACKEN(kraken_reportsLength, ch_KrakenDB)
 
-        KRAKEN.out.raw_output.join(KRAKEN.out.classified_reads).join(KRAKEN.out.reports)
-            .set{ sequences_input }
-
-        EXTRACT_SEQUENCES(sequences_input)
-
     emit: 
     reports = BRACKEN.out.reports
     min_len = BRACKEN.out.min_len
-    sequences = EXTRACT_SEQUENCES.out
 }
