@@ -147,7 +147,10 @@ workflow PROFILING {
         ch_MetabuliDB = Channel.value(file ("${params.metabulidb}"))
         METABULI_CLASSIFY(reads, ch_MetabuliDB)
         profile = METABULI_CLASSIFY.out.report
-        minlen = GET_MINLEN(reads).map{it[2].toInteger()}.min()
+        GET_MINLEN(reads)
+            .map{
+              it -> tuple( it[0], it[2] )
+            }.set{ minlen }
         CONVERT_REPORT_TO_TA(profile, minlen)
 
     } else {

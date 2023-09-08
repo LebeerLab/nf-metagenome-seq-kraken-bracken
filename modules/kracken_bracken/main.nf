@@ -25,11 +25,13 @@ process KRAKEN {
     def mode = !single ? "--paired" : "" 
 
     def report = pair_id + ".kraken2.report"
+    def classif = pair_id + "_classified_#.fq"
+    def outp = pair_id + ".kraken2.out"
 
     """
     kraken2 --db "${db}" --report "${report}" --threads ${task.cpus} \
     --minimum-base-quality $BASE_QUAL --confidence $CONF \
-    --classified-out "$classif" --minimum-hit-groups $MIN_HIT_GROUP \
+    --classified-out "${classif}" --minimum-hit-groups $MIN_HIT_GROUP \
     --memory-mapping ${mode} "${read1}" "${read2}" > $outp
     """
 

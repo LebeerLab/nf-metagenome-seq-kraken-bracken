@@ -108,6 +108,7 @@ ta <- import_tidyamplicons("taxtable")
 # add the run and pipeline names to the tidyamplicons object
 ta$samples$run <- run
 ta$samples$pipeline <- pipeline
+ta$abundances <- ta$abundances %>% select(-genome_size)
 
 # save the tidyamplicons object as three tidy tables
 ta %>% write_tidyamplicons("tidyamplicons")
