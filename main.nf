@@ -139,13 +139,20 @@ workflow PROFILING {
 
     main:
 
+    ch_versions = Channel.empty()
     if (params.profiler == "kraken") {
         KRACKEN_BRACKEN(reads)
+        ch_versions = ch_versions.mix(
+            KRACKEN_BRACKEN.out.versions.first()
+        )
         CONVERT_REPORT_TO_TA(KRACKEN_BRACKEN.out.reports, KRACKEN_BRACKEN.out.min_len)
 
     } else if (params.profiler == "metabuli") {
         ch_MetabuliDB = Channel.value(file ("${params.metabulidb}"))
         METABULI_CLASSIFY(reads, ch_MetabuliDB)
+        ch_versions = ch_versions.mix(
+            METABULI_CLASSIFY.out.versions.first()
+        )
         profile = METABULI_CLASSIFY.out.report
         GET_MINLEN(reads)
             .map{
@@ -156,12 +163,14 @@ workflow PROFILING {
     } else {
         error "Not a valid profiler: ${params.profiler}"
     }
+    emit: versions = ch_versions
 
 }
 
 workflow {
 
     paramsUsed()
+    ch_versions = Channel.empty()
 
     // Collect all fastq files
     Channel
@@ -181,6 +190,9 @@ workflow {
 
         // Filter and trim using fastp
         FASTP(reads.success)
+        ch_versions = ch_versions.mix(
+            FASTP.out.versions.first()
+        )
 
         FASTP.out.filteredReads
             .ifEmpty { error "No reads to filter"}
@@ -191,9 +203,17 @@ workflow {
             .set{fastp}
 
         MULTIQC(fastp)
+        ch_versions = ch_versions.mix(
+            MULTIQC.out.versions.first()
+        )
     } else {
         filteredReads = reads.success
     }
 
     PROFILING(filteredReads)
+    ch_versions = ch_versions.mix(
+        PROFILING.out.versions.first()
+    )
+
+    ch_versions.unique().collectFile("software_versions.yml")
 }

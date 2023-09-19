@@ -14,6 +14,7 @@ process FASTP {
     output:
     tuple val(pair_id), path("filtered_${pair_id}*.fastq.gz"), emit: filteredReads
     path("${pair_id}_fastp.json"), emit: fastp
+    path "versions.yml", emit: versions
 
     script:
     def single = reads instanceof Path
@@ -28,11 +29,17 @@ process FASTP {
      --length_required ${params.minLen} --trim_front1 ${params.trimLeft} \\
      --trim_tail1 ${params.trimRight} --max_len1 ${params.truncLen} \\
      --n_base_limit ${params.maxN} ${cfront} ${ctail} 
+    
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        fastp: \$(fastp -v 2>&1 > /dev/null | sed 's/fastp //';))
+    END_VERSIONS    
     """
 }
 
 process MULTIQC {
-    publishDir "${params.OUTPUT}", mode: 'copy'
+    publishDir "${params.OUTPUT}", mode: 'move'
 
     container params.CONTAINER
     
@@ -41,9 +48,15 @@ process MULTIQC {
 
     output:
     path("multiqc_report.html")
+    path("versions.yml")
 
     script:
     """
     multiqc -m fastp .
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        multiqc: \$(multiqc --version | sed 's/multiqc, version //';))
+    END_VERSIONS    
     """
 }

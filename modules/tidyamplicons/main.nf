@@ -51,10 +51,17 @@ process CREATE_TIDYAMPLICONS {
 
     output:
     tuple path("tidyamplicons/samples.csv"), path("tidyamplicons/taxa.csv"), path("tidyamplicons/abundances.csv"), emit: ta
+    path("versions.yml"), emit: versions
 
     script:
     """
     bracken_to_taxtable.R "${launchDir.getName()}"
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        R: \$(R --v | grep -Po "version \d.\d.\d" | sed 's/version //';))
+        tidyamplicons: \$(echo getNamespaceVersion('tidyamplicons') > ls.R & Rscript ls.R | grep -P "\d.\d.\d")
+    END_VERSIONS  
     """
 }
 
@@ -65,6 +72,7 @@ workflow CONVERT_REPORT_TO_TA {
         min_len
 
     main:
+        ch_versions = Channel.empty()
         // Convert to mpa format
         reports.join(min_len)
             .set{ report_ch }
@@ -75,6 +83,9 @@ workflow CONVERT_REPORT_TO_TA {
             .set { mpa_reports }
         
         CREATE_TIDYAMPLICONS( mpa_reports )
+        ch_versions = ch_versions.mix(
+            CREATE_TIDYAMPLICONS.out.versions.first()
+        )
 
         // Normalize using genome size
 
@@ -93,6 +104,7 @@ workflow CONVERT_REPORT_TO_TA {
     
     emit:
     ta = tidyamplicons
+    versions = ch_versions
 
 }
 

@@ -6,7 +6,7 @@ LEVEL = "S"
 
 process KRAKEN {
     tag "${pair_id}"
-    publishDir "${params.outdir}/kraken", mode: 'copy'
+    publishDir "${params.outdir}/kraken", mode: 'copy', pattern: '*[!.yaml]'
 
     input:
     tuple val(pair_id), path(reads)
@@ -16,7 +16,8 @@ process KRAKEN {
     tuple val(pair_id), path("${pair_id}.kraken2.report"), emit: reports
     tuple val(pair_id), path("${pair_id}_classified_*.fq"), emit: classified_reads
     tuple val(pair_id), path("${pair_id}.kraken2.out"), emit: raw_output
-
+    path("versions.yaml"), emit: versions
+    
     script:
     def single = reads instanceof Path
 
@@ -33,13 +34,17 @@ process KRAKEN {
     --minimum-base-quality $BASE_QUAL --confidence $CONF \
     --classified-out "${classif}" --minimum-hit-groups $MIN_HIT_GROUP \
     --memory-mapping ${mode} "${read1}" "${read2}" > $outp
+    
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        kraken2: \$(kraken2 --version | grep version | sed 's/kraken2 version //';))
+    END_VERSIONS 
     """
-
 }
 
 process BRACKEN {
     tag "${pair_id}"
-    publishDir "${params.outdir}/bracken", mode: 'copy'
+    publishDir "${params.outdir}/bracken", mode: 'copy', pattern: '*[!.yaml]'
 
     input:
     tuple val(pair_id) , path(kraken_rpt), path(reads), val(min_len)
@@ -49,6 +54,7 @@ process BRACKEN {
     tuple val(pair_id), path("${pair_id}.bracken.report"), emit: reports
     tuple val(pair_id), path("${pair_id}.bracken.out")
     tuple val(pair_id), val(min_len), emit: min_len 
+    path("versions.yaml"), emit: versions
     //path("${pair_id}_bracken.out")
     
     script:
@@ -56,7 +62,13 @@ process BRACKEN {
     """
     bracken -d ${db} -i ${kraken_rpt}  -w "${pair_id}.bracken.report" \
     -o "${pair_id}.bracken.out" -l $LEVEL -t $BRACKEN_TRESH -r ${minLen}   
+    
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        bracken: 2.8.0
+    END_VERSIONS 
     """
+    // UPDATE THIS ONCE VERSION ECHO VERSION OF BRACKEN IS RELEASED...
 
 }
 
@@ -86,8 +98,11 @@ workflow KRACKEN_BRACKEN {
 
     main:
         ch_KrakenDB = Channel.value(file ("${params.krakendb}"))
-
+        ch_versions = Channel.empty()
         KRAKEN(reads, ch_KrakenDB)
+        ch_versions = ch_versions.mix(
+            KRAKEN.out.versions.first()
+        )
         KRAKEN.out.reports
             .branch {
                 success: it[1].countLines() > 1
@@ -115,8 +130,12 @@ workflow KRACKEN_BRACKEN {
     	    .set{ kreports }
 
         BRACKEN(kraken_reportsLength, ch_KrakenDB)
+        ch_versions = ch_versions.mix(
+            BRACKEN.out.versions.first()
+        )
 
     emit: 
     reports = BRACKEN.out.reports
     min_len = BRACKEN.out.min_len
+    versions = ch_versions
 }
