@@ -158,7 +158,6 @@ workflow PROFILING {
             FILTER_HOST_READS.out.versions.first()
         )        
         bact_reads = FILTER_HOST_READS.out.host_removed
-        bact_reads = reads
 
         ch_MetabuliDB = Channel.value(file ("${params.metabulidb}"))
         METABULI_CLASSIFY(bact_reads, ch_MetabuliDB)
