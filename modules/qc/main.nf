@@ -33,13 +33,13 @@ process FASTP {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        fastp: \$(fastp -v 2>&1 > /dev/null | sed 's/fastp //';))
+        fastp: \$(fastp -v 2>&1 > /dev/null | sed 's/fastp //';)
     END_VERSIONS    
     """
 }
 
 process MULTIQC {
-    publishDir "${params.OUTPUT}", mode: 'move'
+    publishDir "${params.OUTPUT}", mode: 'move', pattern: '*.html'
 
     container params.CONTAINER
     
@@ -47,8 +47,8 @@ process MULTIQC {
     path('fastp/*')
 
     output:
-    path("multiqc_report.html")
-    path("versions.yml")
+    path("multiqc_report.html"), emit: report
+    path("versions.yml"), emit: versions
 
     script:
     """

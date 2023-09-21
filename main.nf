@@ -2,6 +2,8 @@
 params.reads = "${projectDir}data/samples/*_R{1,2}_001.fastq.gz"
 params.profiler = "kraken"
 params.krakendb = "/mnt/ramdisk/krakendb"
+params.metabulidb = null
+params.host_index = null
 params.outdir = "results"
 
 params.debug = false
@@ -46,6 +48,8 @@ include { CONVERT_REPORT_TO_TA} from './modules/tidyamplicons' addParams(
     OUTPUT: "${params.outdir}", SKIP_NORM : "${params.skip_norm}", 
     GENOMESIZES : "${params.genomesizes}", TEST_PIPELINE : "${params.test_pipeline}"
 )
+
+include { FILTER_HOST_READS } from './modules/host_removal'
 
 //======= INFO ===================================================================
 def helpMessage() {
@@ -148,13 +152,21 @@ workflow PROFILING {
         CONVERT_REPORT_TO_TA(KRACKEN_BRACKEN.out.reports, KRACKEN_BRACKEN.out.min_len)
 
     } else if (params.profiler == "metabuli") {
+
+        FILTER_HOST_READS(reads, file(params.host_index))
+        ch_versions = ch_versions.mix(
+            FILTER_HOST_READS.out.versions.first()
+        )        
+        bact_reads = FILTER_HOST_READS.out.host_removed
+        bact_reads = reads
+
         ch_MetabuliDB = Channel.value(file ("${params.metabulidb}"))
-        METABULI_CLASSIFY(reads, ch_MetabuliDB)
+        METABULI_CLASSIFY(bact_reads, ch_MetabuliDB)
         ch_versions = ch_versions.mix(
             METABULI_CLASSIFY.out.versions.first()
         )
         profile = METABULI_CLASSIFY.out.report
-        GET_MINLEN(reads)
+        GET_MINLEN(bact_reads)
             .map{
               it -> tuple( it[0], it[2] )
             }.set{ minlen }
@@ -163,6 +175,10 @@ workflow PROFILING {
     } else {
         error "Not a valid profiler: ${params.profiler}"
     }
+    ch_versions = ch_versions.mix(
+        CONVERT_REPORT_TO_TA.out.versions
+    )
+
     emit: versions = ch_versions
 
 }
@@ -204,7 +220,7 @@ workflow {
 
         MULTIQC(fastp)
         ch_versions = ch_versions.mix(
-            MULTIQC.out.versions.first()
+            MULTIQC.out.versions
         )
     } else {
         filteredReads = reads.success
@@ -212,8 +228,8 @@ workflow {
 
     PROFILING(filteredReads)
     ch_versions = ch_versions.mix(
-        PROFILING.out.versions.first()
+        PROFILING.out.versions
     )
 
-    ch_versions.unique().collectFile("software_versions.yml")
+    ch_versions.unique().collectFile(name: "software_versions.yml", storeDir: params.outdir)
 }

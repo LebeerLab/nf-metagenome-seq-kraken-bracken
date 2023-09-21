@@ -59,8 +59,8 @@ process CREATE_TIDYAMPLICONS {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        R: \$(R --v | grep -Po "version \d.\d.\d" | sed 's/version //';))
-        tidyamplicons: \$(echo getNamespaceVersion('tidyamplicons') > ls.R & Rscript ls.R | grep -P "\d.\d.\d")
+        R: \$(R --v | grep -Po "version \\d\\.\\d\\.\\d" | sed 's/version //';)
+        tidyamplicons: \$(echo getNamespaceVersion('tidyamplicons') > ls.R & Rscript ls.R | grep -P "\\d\\.\\d\\.\\d")
     END_VERSIONS  
     """
 }
@@ -84,7 +84,7 @@ workflow CONVERT_REPORT_TO_TA {
         
         CREATE_TIDYAMPLICONS( mpa_reports )
         ch_versions = ch_versions.mix(
-            CREATE_TIDYAMPLICONS.out.versions.first()
+            CREATE_TIDYAMPLICONS.out.versions
         )
 
         // Normalize using genome size
