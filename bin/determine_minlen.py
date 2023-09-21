@@ -14,7 +14,12 @@ def fetch_readlengths(fastq_f: str) -> pd.DataFrame:
     if not os.path.exists(fastq_f):
         raise FileNotFoundError(f"Could not locate {fastq_f}.")
 
-    with gzip.open(sys.argv[1], "rt") as f:
+    if fastq_f.endswith(".gz"):
+        opener = gzip.open
+    else:
+        opener = open
+    
+    with opener(sys.argv[1], "rt") as f:
         for record in SeqIO.parse(f, format="fastq"):
             r_len = len(record.seq)
 
@@ -22,6 +27,7 @@ def fetch_readlengths(fastq_f: str) -> pd.DataFrame:
                 readlengths[r_len] = 1
             else:
                 readlengths[r_len] += 1
+
 
     return pd.DataFrame(readlengths, index=[0]).transpose()
 
