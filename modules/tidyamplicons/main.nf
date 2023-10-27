@@ -59,8 +59,7 @@ process CREATE_TIDYAMPLICONS {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        R: \$(R --v | grep -Po "version \\d\\.\\d\\.\\d" | sed 's/version //';)
-        tidyamplicons: \$(echo getNamespaceVersion('tidyamplicons') > ls.R & Rscript ls.R | grep -P "\\d\\.\\d\\.\\d")
+        R: \$(R --version | grep -Po "version \\d\\.\\d\\.\\d" | sed 's/version //';)
     END_VERSIONS  
     """
 }

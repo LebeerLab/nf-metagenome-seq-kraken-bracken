@@ -144,20 +144,21 @@ workflow PROFILING {
     main:
 
     ch_versions = Channel.empty()
+    FILTER_HOST_READS(reads)
+    ch_versions = ch_versions.mix(
+        FILTER_HOST_READS.out.versions.first()
+    )        
+    bact_reads = FILTER_HOST_READS.out.host_removed
+
     if (params.profiler == "kraken") {
-        KRACKEN_BRACKEN(reads)
+    
+        KRACKEN_BRACKEN(bact_reads)
         ch_versions = ch_versions.mix(
             KRACKEN_BRACKEN.out.versions.first()
         )
         CONVERT_REPORT_TO_TA(KRACKEN_BRACKEN.out.reports, KRACKEN_BRACKEN.out.min_len)
 
     } else if (params.profiler == "metabuli") {
-
-        FILTER_HOST_READS(reads, file(params.host_index))
-        ch_versions = ch_versions.mix(
-            FILTER_HOST_READS.out.versions.first()
-        )        
-        bact_reads = FILTER_HOST_READS.out.host_removed
 
         ch_MetabuliDB = Channel.value(file ("${params.metabulidb}"))
         METABULI_CLASSIFY(bact_reads, ch_MetabuliDB)

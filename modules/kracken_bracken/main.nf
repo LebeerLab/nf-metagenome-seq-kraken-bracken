@@ -16,7 +16,7 @@ process KRAKEN {
     tuple val(pair_id), path("${pair_id}.kraken2.report"), emit: reports
     tuple val(pair_id), path("${pair_id}_classified_*.fq"), emit: classified_reads
     tuple val(pair_id), path("${pair_id}.kraken2.out"), emit: raw_output
-    path("versions.yaml"), emit: versions
+    path("versions.yml"), emit: versions
     
     script:
     def single = reads instanceof Path
@@ -32,6 +32,7 @@ process KRAKEN {
     """
     kraken2 --db "${db}" --report "${report}" --threads ${task.cpus} \
     --minimum-base-quality $BASE_QUAL --confidence $CONF \
+    --report-minimizer-data \
     --classified-out "${classif}" --minimum-hit-groups $MIN_HIT_GROUP \
     --memory-mapping ${mode} "${read1}" "${read2}" > $outp
     
@@ -43,6 +44,8 @@ process KRAKEN {
 }
 
 process BRACKEN {
+    cpus 2
+
     tag "${pair_id}"
     publishDir "${params.outdir}/bracken", mode: 'copy', pattern: '*[!.yaml]'
 
@@ -54,7 +57,7 @@ process BRACKEN {
     tuple val(pair_id), path("${pair_id}.bracken.report"), emit: reports
     tuple val(pair_id), path("${pair_id}.bracken.out")
     tuple val(pair_id), val(min_len), emit: min_len 
-    path("versions.yaml"), emit: versions
+    path("versions.yml"), emit: versions
     //path("${pair_id}_bracken.out")
     
     script:
