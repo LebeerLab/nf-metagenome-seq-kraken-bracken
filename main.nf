@@ -4,6 +4,7 @@ params.profiler = "kraken"
 params.krakendb = "/mnt/ramdisk/krakendb"
 params.metabulidb = null
 params.host_index = null
+params.removehost = true
 params.outdir = "results"
 
 params.debug = false
@@ -144,11 +145,15 @@ workflow PROFILING {
     main:
 
     ch_versions = Channel.empty()
-    FILTER_HOST_READS(reads)
-    ch_versions = ch_versions.mix(
-        FILTER_HOST_READS.out.versions.first()
-    )        
-    bact_reads = FILTER_HOST_READS.out.host_removed
+    if (params.removehost) {    
+        FILTER_HOST_READS(reads)
+        ch_versions = ch_versions.mix(
+            FILTER_HOST_READS.out.versions.first()
+        )        
+        bact_reads = FILTER_HOST_READS.out.host_removed
+    } else {
+        bact_reads = reads
+    }
 
     if (params.profiler == "kraken") {
     
@@ -187,7 +192,6 @@ workflow {
 
     paramsUsed()
     ch_versions = Channel.empty()
-
     // Collect all fastq files
     Channel
         .fromFilePairs(params.reads, size: params.pairedEnd ? 2 : 1)
@@ -195,12 +199,12 @@ workflow {
         .take( params.debug ? 3 : -1 )
         //remove 'empty' samples
         .branch {
-            success : params.pairedEnd ? it[1][1].countFastq() >= params.min_reads &&  it[1][0].countFastq() >= params.min_reads : it[1][0].countFastq() >= params.min_reads 
-            failed : params.pairedEnd ? it[1][1].countFastq() < params.min_reads &&  it[1][0].countFastq() < params.min_reads : it[1][0].countFastq() < params.min_reads
+            success : true //params.pairedEnd ? it[1][1].countFastq() >= params.min_reads &&  it[1][0].countFastq() >= params.min_reads : it[1][0].countFastq() >= params.min_reads 
+            failed : false //params.pairedEnd ? it[1][1].countFastq() < params.min_reads &&  it[1][0].countFastq() < params.min_reads : it[1][0].countFastq() < params.min_reads
         }
         .set { reads }
 
-    reads.failed.subscribe { println "Sample ${it[0]} did not meet minimum reads requirement of ${params.min_reads} reads and is excluded."}
+    //reads.failed.subscribe { println "Sample ${it[0]} did not meet minimum reads requirement of ${params.min_reads} reads and is excluded."}
 
     if (!params.skip_fastp){
 

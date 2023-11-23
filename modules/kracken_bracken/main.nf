@@ -14,8 +14,8 @@ process KRAKEN {
 
     output:
     tuple val(pair_id), path("${pair_id}.kraken2.report"), emit: reports
-    tuple val(pair_id), path("${pair_id}_classified_*.fq"), emit: classified_reads
-    tuple val(pair_id), path("${pair_id}.kraken2.out"), emit: raw_output
+    //tuple val(pair_id), path("${pair_id}_classified_*.fq"), emit: classified_reads
+    //tuple val(pair_id), path("${pair_id}.kraken2.out"), emit: raw_output
     path("versions.yml"), emit: versions
     
     script:
@@ -28,13 +28,15 @@ process KRAKEN {
     def report = pair_id + ".kraken2.report"
     def classif = pair_id + "_classified_#.fq"
     def outp = pair_id + ".kraken2.out"
-
+    
+    //--classified-out "${classif}" \
+    //> $outp
     """
     kraken2 --db "${db}" --report "${report}" --threads ${task.cpus} \
     --minimum-base-quality $BASE_QUAL --confidence $CONF \
     --report-minimizer-data \
-    --classified-out "${classif}" --minimum-hit-groups $MIN_HIT_GROUP \
-    --memory-mapping ${mode} "${read1}" "${read2}" > $outp
+    --minimum-hit-groups $MIN_HIT_GROUP \
+    --memory-mapping ${mode} "${read1}" "${read2}" 
     
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

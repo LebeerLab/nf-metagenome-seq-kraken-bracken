@@ -6,9 +6,9 @@ process METABULI_CLASSIFY {
 
     cpus 10
 
-    publishDir "${params.OUTPUT}/metabuli/class", pattern: "**_classifications.tsv", mode: "move"
+    publishDir "${params.OUTPUT}/metabuli/class", pattern: "**_classifications.tsv", mode: "copy"
     publishDir "${params.OUTPUT}/metabuli/reports", pattern: "**report.tsv", mode: "copy"
-    publishDir "${params.OUTPUT}/metabuli/krona", pattern: "**_krona.html", mode: "move"
+    publishDir "${params.OUTPUT}/metabuli/krona", pattern: "**_krona.html", mode: "copy"
     
 
     conda "bioconda::metabuli=1.0.0"
@@ -56,7 +56,7 @@ process METABULI_CLASSIFY {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        metabuli: \$(metabuli | grep Version | sed 's/^metabuli Version: //';))
+        metabuli: \$(metabuli | grep Version | sed 's/^metabuli Version: //';)
     END_VERSIONS
     """
 }
