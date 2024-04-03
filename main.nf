@@ -1,6 +1,10 @@
 // PARAMS ======================================================================
 params.reads = "${projectDir}data/samples/*_R{1,2}_001.fastq.gz"
+params.profiler = "kraken"
 params.krakendb = "/mnt/ramdisk/krakendb"
+params.metabulidb = null
+params.host_index = null
+params.removehost = true
 params.outdir = "results"
 
 params.debug = false
@@ -16,23 +20,38 @@ params.minLen = 50
 params.maxN = 2
 params.windowFront = 4
 params.windowTail = 5
+
+params.b_treshold = 10
+params.confidence = 0.05
+params.level = "S"
+
 params.genomesizes = null
 
+
 // INCLUDE WORKFLOW ==============================================================
-include { KRACKEN_BRACKEN } from './modules/kracken_bracken'
+include { KRACKEN_BRACKEN } from './modules/kracken_bracken' addParams(
+    BASE_QUAL : params.b_treshold,
+    LEVEL : params.level,
+    CONF : params.confidence,
+    BRACKEN_TRESH : params.bracken_treshold,
+    MIN_HIT_GROUP : params.min_hit_groups
+)
 
 // INCLUDE MODULES ===============================================================
+include { METABULI_CLASSIFY } from './modules/metabuli/classify' addParams(
+    OUTPUT : "${params.outdir}"
+)
+include { DETERMINE_MIN_LENGTH as GET_MINLEN} from './modules/kracken_bracken'
 include { FASTP; MULTIQC } from './modules/qc' addParams(
     OUTPUT: "${params.outdir}"    
 )
-include { CONVERT_REPORT_TO_TA as CONVERT_BRACKEN_REPORT_TO_TA } from './modules/tidyamplicons' addParams(
+include { CONVERT_REPORT_TO_TA} from './modules/tidyamplicons' addParams(
     OUTPUT: "${params.outdir}", SKIP_NORM : "${params.skip_norm}", 
-    GENOMESIZES : "${params.genomesizes}", TEST_PIPELINE : "${params.test_pipeline}"
+    GENOMESIZES : params.genomesizes, TEST_PIPELINE : "${params.test_pipeline}"
 )
-include { CONVERT_REPORT_TO_TA as CONVERT_KRAKEN_REPORT_TO_TA } from './modules/tidyamplicons' addParams(
-    OUTPUT: "${params.outdir}", SKIP_NORM : "${params.skip_norm}", 
-    GENOMESIZES : "${params.genomesizes}", TEST_PIPELINE : "${params.test_pipeline}",
-    REPORT_TYPE : "kraken"
+
+include { FILTER_HOST_READS; BOWTIE_HOST_READS } from './modules/host_removal' addParams(
+   OUTPUT: "${params.outdir}"
 )
 
 //======= INFO ===================================================================
@@ -94,6 +113,7 @@ def paramsUsed() {
     
     BRACKEN:
     bracken_treshold: ${params.bracken_treshold}
+    level:            ${params.level}
 
     ABUNDANCE NORMALIZATION:
     genomesizes:      ${params.genomesizes}
@@ -121,12 +141,65 @@ process WRITE_READCOUNTS {
 }
 
 
+workflow PROFILING {
+    take: reads
 
+    main:
+
+    ch_versions = Channel.empty()
+    if (params.removehost) {    
+        FILTER_HOST_READS(reads)
+        ch_versions = ch_versions.mix(
+            FILTER_HOST_READS.out.versions.first()
+        )        
+        bact_reads = FILTER_HOST_READS.out.host_removed
+    } else if (params.host_index) {
+        BOWTIE_HOST_READS(reads, file(params.host_index))
+        ch_versions = ch_versions.mix(
+            BOWTIE_HOST_READS.out.versions.first()
+        )
+        bact_reads = BOWTIE_HOST_READS.out.host_removed
+    } else {
+        bact_reads = reads
+    }
+
+    if (params.profiler == "kraken") {
+    
+        KRACKEN_BRACKEN(bact_reads)
+        ch_versions = ch_versions.mix(
+            KRACKEN_BRACKEN.out.versions.first()
+        )
+        CONVERT_REPORT_TO_TA(KRACKEN_BRACKEN.out.reports, KRACKEN_BRACKEN.out.min_len)
+
+    } else if (params.profiler == "metabuli") {
+
+        ch_MetabuliDB = Channel.value(file ("${params.metabulidb}"))
+        METABULI_CLASSIFY(bact_reads, ch_MetabuliDB)
+        ch_versions = ch_versions.mix(
+            METABULI_CLASSIFY.out.versions.first()
+        )
+        profile = METABULI_CLASSIFY.out.report
+        GET_MINLEN(bact_reads)
+            .map{
+              it -> tuple( it[0], it[2] )
+            }.set{ minlen }
+        CONVERT_REPORT_TO_TA(profile, minlen)
+
+    } else {
+        error "Not a valid profiler: ${params.profiler}"
+    }
+    ch_versions = ch_versions.mix(
+        CONVERT_REPORT_TO_TA.out.versions
+    )
+
+    emit: versions = ch_versions
+
+}
 
 workflow {
 
     paramsUsed()
-
+    ch_versions = Channel.empty()
     // Collect all fastq files
     Channel
         .fromFilePairs(params.reads, size: params.pairedEnd ? 2 : 1)
@@ -134,17 +207,20 @@ workflow {
         .take( params.debug ? 3 : -1 )
         //remove 'empty' samples
         .branch {
-            success : params.pairedEnd ? it[1][1].countFastq() >= params.min_reads &&  it[1][0].countFastq() >= params.min_reads : it[1][0].countFastq() >= params.min_reads 
-            failed : params.pairedEnd ? it[1][1].countFastq() < params.min_reads &&  it[1][0].countFastq() < params.min_reads : it[1][0].countFastq() < params.min_reads
+            success : true //params.pairedEnd ? it[1][1].countFastq() >= params.min_reads &&  it[1][0].countFastq() >= params.min_reads : it[1][0].countFastq() >= params.min_reads 
+            failed : false //params.pairedEnd ? it[1][1].countFastq() < params.min_reads &&  it[1][0].countFastq() < params.min_reads : it[1][0].countFastq() < params.min_reads
         }
         .set { reads }
 
-    reads.failed.subscribe { println "Sample ${it[0]} did not meet minimum reads requirement of ${params.min_reads} reads and is excluded."}
+    //reads.failed.subscribe { println "Sample ${it[0]} did not meet minimum reads requirement of ${params.min_reads} reads and is excluded."}
 
     if (!params.skip_fastp){
 
         // Filter and trim using fastp
         FASTP(reads.success)
+        ch_versions = ch_versions.mix(
+            FASTP.out.versions.first()
+        )
 
         FASTP.out.filteredReads
             .ifEmpty { error "No reads to filter"}
@@ -155,11 +231,17 @@ workflow {
             .set{fastp}
 
         MULTIQC(fastp)
+        ch_versions = ch_versions.mix(
+            MULTIQC.out.versions
+        )
     } else {
         filteredReads = reads.success
     }
 
-    KRACKEN_BRACKEN(filteredReads)
-    //TODO: WRITE METABULI SWITCH
-    CONVERT_BRACKEN_REPORT_TO_TA(KRACKEN_BRACKEN.out)
+    PROFILING(filteredReads)
+    ch_versions = ch_versions.mix(
+        PROFILING.out.versions
+    )
+
+    ch_versions.unique().collectFile(name: "software_versions.yml", storeDir: params.outdir)
 }
