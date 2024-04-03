@@ -47,10 +47,12 @@ include { FASTP; MULTIQC } from './modules/qc' addParams(
 )
 include { CONVERT_REPORT_TO_TA} from './modules/tidyamplicons' addParams(
     OUTPUT: "${params.outdir}", SKIP_NORM : "${params.skip_norm}", 
-    GENOMESIZES : "${params.genomesizes}", TEST_PIPELINE : "${params.test_pipeline}"
+    GENOMESIZES : params.genomesizes, TEST_PIPELINE : "${params.test_pipeline}"
 )
 
-include { FILTER_HOST_READS } from './modules/host_removal'
+include { FILTER_HOST_READS; BOWTIE_HOST_READS } from './modules/host_removal' addParams(
+   OUTPUT: "${params.outdir}"
+)
 
 //======= INFO ===================================================================
 def helpMessage() {
@@ -151,6 +153,12 @@ workflow PROFILING {
             FILTER_HOST_READS.out.versions.first()
         )        
         bact_reads = FILTER_HOST_READS.out.host_removed
+    } else if (params.host_index) {
+        BOWTIE_HOST_READS(reads, file(params.host_index))
+        ch_versions = ch_versions.mix(
+            BOWTIE_HOST_READS.out.versions.first()
+        )
+        bact_reads = BOWTIE_HOST_READS.out.host_removed
     } else {
         bact_reads = reads
     }
