@@ -3,13 +3,14 @@ params.reads = "${projectDir}data/samples/*_R{1,2}_001.fastq.gz"
 params.profiler = "kraken"
 params.krakendb = "/mnt/ramdisk/krakendb"
 params.metabulidb = null
+params.t2tdb = "/mnt/b/seqdata/illumina_mgs/databases/human-t2t/"
 params.host_index = null
 params.removehost = true
 params.outdir = "results"
 
 params.debug = false
 params.skip_fastp = false
-
+params.skip_profiling = false
 params.pairedEnd = true
 params.min_reads=800
 
@@ -35,6 +36,10 @@ include { KRACKEN_BRACKEN } from './modules/kracken_bracken' addParams(
     CONF : params.confidence,
     BRACKEN_TRESH : params.bracken_treshold,
     MIN_HIT_GROUP : params.min_hit_groups
+)
+
+include { SYLPH_PROFILE; SYLP_TO_MPA } from './modules/sylph' addParams(
+    OUTDIR : "${params.outdir}"
 )
 
 // INCLUDE MODULES ===============================================================
@@ -147,50 +152,54 @@ workflow PROFILING {
     main:
 
     ch_versions = Channel.empty()
-    if (params.removehost) {    
-        FILTER_HOST_READS(reads)
-        ch_versions = ch_versions.mix(
-            FILTER_HOST_READS.out.versions.first()
-        )        
-        bact_reads = FILTER_HOST_READS.out.host_removed
-    } else if (params.host_index) {
-        BOWTIE_HOST_READS(reads, file(params.host_index))
-        ch_versions = ch_versions.mix(
-            BOWTIE_HOST_READS.out.versions.first()
-        )
-        bact_reads = BOWTIE_HOST_READS.out.host_removed
-    } else {
-        bact_reads = reads
-    }
-
     if (params.profiler == "kraken") {
     
-        KRACKEN_BRACKEN(bact_reads)
+        KRACKEN_BRACKEN(reads)
         ch_versions = ch_versions.mix(
             KRACKEN_BRACKEN.out.versions.first()
         )
         CONVERT_REPORT_TO_TA(KRACKEN_BRACKEN.out.reports, KRACKEN_BRACKEN.out.min_len)
+        ch_versions = ch_versions.mix(
+            CONVERT_REPORT_TO_TA.out.versions
+        )
 
     } else if (params.profiler == "metabuli") {
 
         ch_MetabuliDB = Channel.value(file ("${params.metabulidb}"))
-        METABULI_CLASSIFY(bact_reads, ch_MetabuliDB)
+        METABULI_CLASSIFY(reads, ch_MetabuliDB)
         ch_versions = ch_versions.mix(
             METABULI_CLASSIFY.out.versions.first()
         )
         profile = METABULI_CLASSIFY.out.report
-        GET_MINLEN(bact_reads)
+        GET_MINLEN(reads)
             .map{
               it -> tuple( it[0], it[2] )
             }.set{ minlen }
         CONVERT_REPORT_TO_TA(profile, minlen)
+        ch_versions = ch_versions.mix(
+            CONVERT_REPORT_TO_TA.out.versions
+        )
 
-    } else {
+    } else if (params.profiler == "sylph") {
+        if (params.sylphdb == null) {
+            error "No sylph database supplied"
+        }
+        ch_SylphDB = Channel.value(file ("${params.sylphdb}"))
+        sylphdb = new File(params.sylphdb)
+        if (!sylphdb.exists()){
+            log.error("Could not find sylph database")
+        }
+        allReads = reads
+          .map{ it -> it[1] }
+          .collect()
+        SYLPH_PROFILE(allReads, ch_SylphDB)
+        SYLP_TO_MPA(SYLPH_PROFILE.out.profile)
+    }
+
+    else {
         error "Not a valid profiler: ${params.profiler}"
     }
-    ch_versions = ch_versions.mix(
-        CONVERT_REPORT_TO_TA.out.versions
-    )
+
 
     emit: versions = ch_versions
 
@@ -207,12 +216,12 @@ workflow {
         .take( params.debug ? 3 : -1 )
         //remove 'empty' samples
         .branch {
-            success : true //params.pairedEnd ? it[1][1].countFastq() >= params.min_reads &&  it[1][0].countFastq() >= params.min_reads : it[1][0].countFastq() >= params.min_reads 
-            failed : false //params.pairedEnd ? it[1][1].countFastq() < params.min_reads &&  it[1][0].countFastq() < params.min_reads : it[1][0].countFastq() < params.min_reads
+            success : params.pairedEnd ? it[1][1].countFastq() >= params.min_reads &&  it[1][0].countFastq() >= params.min_reads : it[1][0].countFastq() >= params.min_reads 
+            failed : params.pairedEnd ? it[1][1].countFastq() < params.min_reads &&  it[1][0].countFastq() < params.min_reads : it[1][0].countFastq() < params.min_reads
         }
         .set { reads }
 
-    //reads.failed.subscribe { println "Sample ${it[0]} did not meet minimum reads requirement of ${params.min_reads} reads and is excluded."}
+    reads.failed.subscribe { println "Sample ${it[0]} did not meet minimum reads requirement of ${params.min_reads} reads and is excluded."}
 
     if (!params.skip_fastp){
 
@@ -238,10 +247,29 @@ workflow {
         filteredReads = reads.success
     }
 
-    PROFILING(filteredReads)
+    if (params.removehost) {   
+        hostile_db = file(params.t2tdb) 
+        FILTER_HOST_READS(filteredReads, hostile_db)
+        ch_versions = ch_versions.mix(
+            FILTER_HOST_READS.out.versions.first()
+        )        
+        bact_reads = FILTER_HOST_READS.out.host_removed
+    } else if (params.host_index) {
+        BOWTIE_HOST_READS(filteredReads, file(params.host_index))
+        ch_versions = ch_versions.mix(
+            BOWTIE_HOST_READS.out.versions.first()
+        )
+        bact_reads = BOWTIE_HOST_READS.out.host_removed
+    } else {
+        bact_reads = filteredReads
+    }
+
+    if (!params.skip_profiling) {
+    
+    PROFILING(bact_reads)
     ch_versions = ch_versions.mix(
         PROFILING.out.versions
     )
-
+    }
     ch_versions.unique().collectFile(name: "software_versions.yml", storeDir: params.outdir)
 }

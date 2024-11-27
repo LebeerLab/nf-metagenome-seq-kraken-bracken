@@ -1,0 +1,3 @@
+[submodule "sylph-utils"]
+	path = modules/sylph/bin/sylph-utils
+	url = https://github.com/bluenote-1577/sylph-utils.git

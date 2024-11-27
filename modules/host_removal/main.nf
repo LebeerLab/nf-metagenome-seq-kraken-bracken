@@ -1,6 +1,7 @@
+
 process FILTER_HOST_READS {
     tag "${id}"
-    container "quay.io/biocontainers/hostile:0.2.0--pyhdfd78af_0"
+    container "quay.io/biocontainers/hostile:1.1.0--pyhdfd78af_0"
     
     publishDir "${params.OUTPUT}/hostremoved"
 
@@ -8,6 +9,7 @@ process FILTER_HOST_READS {
 
     input:
     tuple val(id), path(fastq)
+    path(db)
 
     output:
     tuple val(id), path("*.clean*.fastq.gz"), emit: host_removed
@@ -19,6 +21,7 @@ process FILTER_HOST_READS {
     """
     hostile clean \\
      $input \\
+     --index $db/human-t2t-hla \\
      --threads $task.cpus 
     
     cat <<-END_VERSIONS > versions.yml
